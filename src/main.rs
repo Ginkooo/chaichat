@@ -5,7 +5,9 @@ extern crate image;
 use image::imageops::resize;
 use image::imageops::colorops::grayscale;
 use image::FilterType;
-use image::load_from_memory;
+use image::RgbImage;
+use std::time::Instant;
+use std::sync::mpsc;
 
 
 
@@ -19,10 +21,10 @@ fn main() {
     let mut y: i32 = 0;
     ncurses::getmaxyx(window, &mut y, &mut x);
     for frame in cam {
-        let dupa = frame.to_vec();
-        let frame = load_from_memory(&dupa[..]).unwrap();
-        let frame = grayscale(&frame);
+        let frame = RgbImage::from_raw(frame.width(), frame.height(), frame.to_vec()).unwrap();
         let frame = resize(&frame, x as u32, y as u32, FilterType::Nearest);
+        let frame = grayscale(&frame);
+        let start = Instant::now();
         for (i, pixel) in frame.enumerate_pixels().enumerate() {
             let dupa = pixel.2.data;
             let value = (ASCII_GREYSCALE.len() - 1) * dupa[0] as usize/255 + 1;
@@ -32,5 +34,7 @@ fn main() {
             ncurses::mvaddch(put_y, put_x, ch);
         }
         ncurses::refresh();
+        let duration = Instant::now().duration_since(start);
+        println!("{}", duration.as_millis());
     }
 }
