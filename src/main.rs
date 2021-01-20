@@ -48,7 +48,7 @@ fn fit_frame_to_screen(frame: ImageBuffer<Rgb<u8>, Frame>, y: i32, x: i32) -> Im
 }
 
 fn get_remote_frames(port: String, received_maps_tx: Sender<DisplayMap>) {
-    let listener = TcpListener::bind(format!("127.0.0.1:{}", port)).unwrap();
+    let listener = TcpListener::bind(format!("0.0.0.0:{}", port)).unwrap();
     println!("Binding to port {}", port);
 
     for stream in listener.incoming() {
@@ -73,7 +73,7 @@ fn get_remote_frames(port: String, received_maps_tx: Sender<DisplayMap>) {
 }
 
 fn send_remote_frames(port: String, rx: Receiver<DisplayMap>) {
-    let mut stream = TcpStream::connect(format!("127.0.0.1:{}", port)).unwrap();
+    let mut stream = TcpStream::connect(format!("217.182.75.11:{}", port)).unwrap();
     for display_map in rx {
         let encoded = bincode::serialize(&display_map).unwrap();
         let to_send = &encoded[..];
@@ -91,7 +91,7 @@ fn run_camera_thread(camera_maps_tx: Sender<DisplayMap>) {
     ncurses::endwin();
 
     let cam = camera_capture::create(0).unwrap();
-    let cam = cam.fps(15.0).unwrap().start().unwrap();
+    let cam = cam.fps(30.0).unwrap().start().unwrap();
     thread::spawn(move || {
         for frame in cam {
             let frame = fit_frame_to_screen(frame, y, x);
