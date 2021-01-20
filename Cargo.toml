@@ -7,3 +7,5 @@ authors = ["Piotr Czajka <czajka@protonmail.com>"]
 camera_capture = "0.5.0"
 ncurses = "*"
 image = "*"
+serde = "*"
+bincode = "*"
