@@ -4,4 +4,6 @@ version = "0.1.0"
 authors = ["Piotr Czajka <czajka@protonmail.com>"]
 
 [dependencies]
-pancurses = "0.16"
+camera_capture = "0.5.0"
+ncurses = "*"
+image = "*"
