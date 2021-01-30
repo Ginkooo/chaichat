@@ -1,5 +1,5 @@
 extern crate camera_capture;
-extern crate ncurses;
+extern crate pancurses;
 extern crate image;
 extern crate bincode;
 
@@ -14,6 +14,7 @@ use std::net::{TcpListener, TcpStream};
 use std::thread;
 use std::sync::mpsc::{channel, Sender, Receiver};
 use std::mem::transmute;
+use pancurses::Window;
 
 
 
@@ -21,10 +22,10 @@ type DisplayMap = HashMap<u32, Vec<(i32, i32)>>;
 
 const ASCII_GREYSCALE: &str = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'.";
 
-fn draw_map_on_screen(map: HashMap<u32, Vec<(i32, i32)>>) {
+fn draw_map_on_screen(window: &Window, map: HashMap<u32, Vec<(i32, i32)>>) {
     for (chr, positions) in map {
         for pos in positions {
-            ncurses::mvaddch(pos.0, pos.1, chr);
+            window.mvaddch(pos.0, pos.1, chr);
         }
     }
 }
@@ -66,14 +67,16 @@ fn get_remote_frames(port: String, received_maps_tx: Sender<DisplayMap>) {
 
 
             if buf.is_empty() {continue;}
-            let display_map = bincode::deserialize(&arr[..]).unwrap();
-            received_maps_tx.send(display_map).unwrap();
+            match bincode::deserialize(&arr[..]) {
+                Ok(display_map) => {received_maps_tx.send(display_map).unwrap()},
+                Err(_) => {continue;}
+            };
         }
     }
 }
 
 fn send_remote_frames(port: String, rx: Receiver<DisplayMap>) {
-    let mut stream = TcpStream::connect(format!("217.182.75.11:{}", port)).unwrap();
+    let mut stream = TcpStream::connect(format!("127.0.0.1:{}", port)).unwrap();
     for display_map in rx {
         let encoded = bincode::serialize(&display_map).unwrap();
         let to_send = &encoded[..];
@@ -83,13 +86,7 @@ fn send_remote_frames(port: String, rx: Receiver<DisplayMap>) {
     }
 }
 
-fn run_camera_thread(camera_maps_tx: Sender<DisplayMap>) {
-    let window = ncurses::initscr();
-    let mut x: i32 = 0;
-    let mut y: i32 = 0;
-    ncurses::getmaxyx(window, &mut y, &mut x);
-    ncurses::endwin();
-
+fn run_camera_thread(y: i32, x: i32, camera_maps_tx: Sender<DisplayMap>) {
     let cam = camera_capture::create(0).unwrap();
     let cam = cam.fps(30.0).unwrap().start().unwrap();
     thread::spawn(move || {
@@ -124,14 +121,16 @@ fn main() {
         }
     };
 
+    let window = pancurses::initscr();
+    let (y, x) = window.get_max_yx();
+
     if display_from_remote {
-        ncurses::initscr();
         for display_map in received_maps_rx {
-            draw_map_on_screen(display_map);
-            ncurses::refresh();
+            draw_map_on_screen(&window, display_map);
+            window.refresh();
         }
     } else {
-        run_camera_thread(camera_maps_tx);
+        run_camera_thread(y, x, camera_maps_tx);
         for map in camera_maps_rx {
             sent_maps_tx.send(map).unwrap();
         }
