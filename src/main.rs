@@ -28,6 +28,7 @@ const REMOTE_IP: &str = "217.182.75.11";
 fn draw_map_on_screen(window: &Window, map: DisplayMap) {
     for (position, chr) in map {
         window.mvaddch(position.0, position.1, chr);
+        println!("Adding char {} to {} {}", chr, position.0, position.1);
     }
 }
 fn get_display_map(frame: ImageBuffer<Luma<u8>, Vec<u8>>, x: i32) -> DisplayMap {
@@ -39,7 +40,6 @@ fn get_display_map(frame: ImageBuffer<Luma<u8>, Vec<u8>>, x: i32) -> DisplayMap 
         let put_x = i as i32 % x;
         let ch = ASCII_GREYSCALE.chars().rev().nth(value).unwrap() as u32;
         map.insert((put_y, put_x), ch);
-        println!("{:?}", map.keys());
     }
     map
 }
@@ -47,8 +47,7 @@ fn get_display_map(frame: ImageBuffer<Luma<u8>, Vec<u8>>, x: i32) -> DisplayMap 
 fn fit_frame_to_screen(frame: ImageBuffer<Rgb<u8>, Frame>, y: i32, x: i32) -> ImageBuffer<Luma<u8>, Vec<u8>> {
     let frame = RgbImage::from_raw(frame.width(), frame.height(), frame.to_vec()).unwrap();
     let frame = resize(&frame, x as u32, y as u32, FilterType::Nearest);
-    let ret = grayscale(&frame);
-    ret
+    grayscale(&frame)
 }
 
 fn get_remote_frames(port: String, received_maps_tx: Sender<DisplayMap>) {
