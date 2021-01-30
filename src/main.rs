@@ -28,7 +28,6 @@ const REMOTE_IP: &str = "217.182.75.11";
 fn draw_map_on_screen(window: &Window, map: DisplayMap) {
     for (position, chr) in map {
         window.mvaddch(position.0, position.1, chr);
-        println!("Adding char {} to {} {}", chr, position.0, position.1);
     }
 }
 fn get_display_map(frame: ImageBuffer<Luma<u8>, Vec<u8>>, x: i32) -> DisplayMap {
