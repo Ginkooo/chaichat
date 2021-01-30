@@ -438,7 +438,6 @@ dependencies = [
  "camera_capture",
  "image",
  "pancurses",
- "serde",
 ]
 
 [[package]]
