@@ -5,11 +5,12 @@ extern crate bincode;
 
 use image::imageops::resize;
 use std::env;
+use std::time::Instant;
 use std::io::prelude::*;
 use camera_capture::Frame;
 use image::imageops::colorops::grayscale;
 use image::{RgbImage, ImageBuffer, Luma, FilterType, Rgb};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::net::{TcpListener, TcpStream};
 use std::thread;
 use std::sync::mpsc::{channel, Sender, Receiver};
@@ -18,15 +19,15 @@ use pancurses::Window;
 
 
 
-type DisplayMap = HashMap<u32, Vec<(i32, i32)>>;
+type DisplayMap = HashMap<(i32, i32), u32>;
 
 const ASCII_GREYSCALE: &str = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'.";
+const LOCAL_IP: &str = "127.0.0.1";
+const REMOTE_IP: &str = "217.182.75.11";
 
-fn draw_map_on_screen(window: &Window, map: HashMap<u32, Vec<(i32, i32)>>) {
-    for (chr, positions) in map {
-        for pos in positions {
-            window.mvaddch(pos.0, pos.1, chr);
-        }
+fn draw_map_on_screen(window: &Window, map: DisplayMap) {
+    for (position, chr) in map {
+        window.mvaddch(position.0, position.1, chr);
     }
 }
 fn get_display_map(frame: ImageBuffer<Luma<u8>, Vec<u8>>, x: i32) -> DisplayMap {
@@ -37,7 +38,8 @@ fn get_display_map(frame: ImageBuffer<Luma<u8>, Vec<u8>>, x: i32) -> DisplayMap 
         let put_y = (i as i32+1)/x;
         let put_x = i as i32 % x;
         let ch = ASCII_GREYSCALE.chars().rev().nth(value).unwrap() as u32;
-        map.entry(ch).or_insert(vec!()).push((put_y, put_x));
+        map.insert((put_y, put_x), ch);
+        println!("{:?}", map.keys());
     }
     map
 }
@@ -45,7 +47,8 @@ fn get_display_map(frame: ImageBuffer<Luma<u8>, Vec<u8>>, x: i32) -> DisplayMap 
 fn fit_frame_to_screen(frame: ImageBuffer<Rgb<u8>, Frame>, y: i32, x: i32) -> ImageBuffer<Luma<u8>, Vec<u8>> {
     let frame = RgbImage::from_raw(frame.width(), frame.height(), frame.to_vec()).unwrap();
     let frame = resize(&frame, x as u32, y as u32, FilterType::Nearest);
-    grayscale(&frame)
+    let ret = grayscale(&frame);
+    ret
 }
 
 fn get_remote_frames(port: String, received_maps_tx: Sender<DisplayMap>) {
@@ -68,7 +71,9 @@ fn get_remote_frames(port: String, received_maps_tx: Sender<DisplayMap>) {
 
             if buf.is_empty() {continue;}
             match bincode::deserialize(&arr[..]) {
-                Ok(display_map) => {received_maps_tx.send(display_map).unwrap()},
+                Ok(display_map) => {
+                    received_maps_tx.send(display_map).unwrap()
+                },
                 Err(_) => {continue;}
             };
         }
@@ -76,7 +81,7 @@ fn get_remote_frames(port: String, received_maps_tx: Sender<DisplayMap>) {
 }
 
 fn send_remote_frames(port: String, rx: Receiver<DisplayMap>) {
-    let mut stream = TcpStream::connect(format!("127.0.0.1:{}", port)).unwrap();
+    let mut stream = TcpStream::connect(format!("{}:{}", REMOTE_IP, port)).unwrap();
     for display_map in rx {
         let encoded = bincode::serialize(&display_map).unwrap();
         let to_send = &encoded[..];
@@ -90,6 +95,7 @@ fn run_camera_thread(y: i32, x: i32, camera_maps_tx: Sender<DisplayMap>) {
     let cam = camera_capture::create(0).unwrap();
     let cam = cam.fps(30.0).unwrap().start().unwrap();
     thread::spawn(move || {
+        let start = Instant::now();
         for frame in cam {
             let frame = fit_frame_to_screen(frame, y, x);
             let map = get_display_map(frame, x);
