@@ -30,17 +30,36 @@ fn draw_map_on_screen(window: &Window, map: DisplayMap) {
         window.mvaddch(position.0, position.1, chr);
     }
 }
-fn get_display_map(frame: ImageBuffer<Luma<u8>, Vec<u8>>, x: i32) -> DisplayMap {
-    let mut map = HashMap::new();
+fn get_display_map(frame: ImageBuffer<Luma<u8>, Vec<u8>>, x: i32, old_map: &mut DisplayMap) -> DisplayMap {
+    let mut all_map = DisplayMap::new();
+    let mut difference_map = DisplayMap::new();
     for (i, pixel) in frame.enumerate_pixels().enumerate() {
         let pixel_value = pixel.2.data;
         let value = (ASCII_GREYSCALE.len() - 1) * pixel_value[0] as usize/255 + 1;
         let put_y = (i as i32+1)/x;
         let put_x = i as i32 % x;
         let ch = ASCII_GREYSCALE.chars().rev().nth(value).unwrap() as u32;
-        map.insert((put_y, put_x), ch);
+        match old_map.get(&(put_y, put_x)) {
+            Some(old_ch) => {
+                let absolute_diff = ((ASCII_GREYSCALE.chars().position(|c| c as u32 == ch).unwrap() - ASCII_GREYSCALE.chars().position(|c| c as u32 == *old_ch).unwrap()) as i32).abs();
+                match absolute_diff > 1 {
+                    true => {
+                        difference_map.insert((put_y, put_x), ch)
+                    }
+                    false => {
+                        all_map.insert((put_y, put_x), ch);
+                        continue;
+                    }
+                };
+            }
+            None => {
+                difference_map.insert((put_y, put_x), ch);
+            }
+        };
+        all_map.insert((put_y, put_x), ch);
     }
-    map
+    *old_map = all_map;
+    difference_map
 }
 
 fn fit_frame_to_screen(frame: ImageBuffer<Rgb<u8>, Frame>, y: i32, x: i32) -> ImageBuffer<Luma<u8>, Vec<u8>> {
@@ -79,7 +98,7 @@ fn get_remote_frames(port: String, received_maps_tx: Sender<DisplayMap>) {
 }
 
 fn send_remote_frames(port: String, rx: Receiver<DisplayMap>) {
-    let mut stream = TcpStream::connect(format!("{}:{}", REMOTE_IP, port)).unwrap();
+    let mut stream = TcpStream::connect(format!("{}:{}", LOCAL_IP, port)).unwrap();
     for display_map in rx {
         let encoded = bincode::serialize(&display_map).unwrap();
         let to_send = &encoded[..];
@@ -90,14 +109,15 @@ fn send_remote_frames(port: String, rx: Receiver<DisplayMap>) {
 }
 
 fn run_camera_thread(y: i32, x: i32, camera_maps_tx: Sender<DisplayMap>) {
-    let cam = camera_capture::create(0).unwrap();
-    let cam = cam.fps(30.0).unwrap().start().unwrap();
     thread::spawn(move || {
-        let start = Instant::now();
+        let mut old_map = DisplayMap::new();
+
+        let cam = camera_capture::create(0).unwrap();
+        let cam = cam.fps(30.0).unwrap().start().unwrap();
         for frame in cam {
             let frame = fit_frame_to_screen(frame, y, x);
-            let map = get_display_map(frame, x);
-            camera_maps_tx.send(map).unwrap();
+            let difference_map = get_display_map(frame, x, &mut old_map);
+            camera_maps_tx.send(difference_map).unwrap();
         }
     });
 }
