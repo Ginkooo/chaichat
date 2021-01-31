@@ -11,7 +11,7 @@ use camera_capture::Frame;
 use image::imageops::colorops::grayscale;
 use image::{RgbImage, ImageBuffer, Luma, FilterType, Rgb};
 use std::collections::{HashMap, HashSet};
-use std::net::{TcpListener, TcpStream};
+use std::net::{TcpListener, TcpStream, UdpSocket};
 use std::thread;
 use std::sync::mpsc::{channel, Sender, Receiver};
 use std::mem::transmute;
@@ -19,11 +19,12 @@ use pancurses::Window;
 
 
 
-type DisplayMap = HashMap<(i32, i32), u32>;
+type DisplayMap = Vec<((i32, i32), u32)>;
 
 const ASCII_GREYSCALE: &str = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}[]?-_+~<>i!lI;:,\"^`'.";
 const LOCAL_IP: &str = "127.0.0.1";
 const REMOTE_IP: &str = "217.182.75.11";
+const DISPLAY_MAP_SZ: usize = 130568;
 
 fn draw_map_on_screen(window: &Window, map: DisplayMap) {
     for (position, chr) in map {
@@ -31,7 +32,6 @@ fn draw_map_on_screen(window: &Window, map: DisplayMap) {
     }
 }
 fn get_display_map(frame: ImageBuffer<Luma<u8>, Vec<u8>>, x: i32, old_map: &mut DisplayMap) -> DisplayMap {
-    let mut all_map = DisplayMap::new();
     let mut difference_map = DisplayMap::new();
     for (i, pixel) in frame.enumerate_pixels().enumerate() {
         let pixel_value = pixel.2.data;
@@ -39,26 +39,8 @@ fn get_display_map(frame: ImageBuffer<Luma<u8>, Vec<u8>>, x: i32, old_map: &mut 
         let put_y = (i as i32+1)/x;
         let put_x = i as i32 % x;
         let ch = ASCII_GREYSCALE.chars().rev().nth(value).unwrap() as u32;
-        match old_map.get(&(put_y, put_x)) {
-            Some(old_ch) => {
-                let absolute_diff = ((ASCII_GREYSCALE.chars().position(|c| c as u32 == ch).unwrap() - ASCII_GREYSCALE.chars().position(|c| c as u32 == *old_ch).unwrap()) as i32).abs();
-                match absolute_diff > 1 {
-                    true => {
-                        difference_map.insert((put_y, put_x), ch)
-                    }
-                    false => {
-                        all_map.insert((put_y, put_x), ch);
-                        continue;
-                    }
-                };
-            }
-            None => {
-                difference_map.insert((put_y, put_x), ch);
-            }
-        };
-        all_map.insert((put_y, put_x), ch);
+        difference_map.push(((put_y, put_x), ch));
     }
-    *old_map = all_map;
     difference_map
 }
 
@@ -69,42 +51,32 @@ fn fit_frame_to_screen(frame: ImageBuffer<Rgb<u8>, Frame>, y: i32, x: i32) -> Im
 }
 
 fn get_remote_frames(port: String, received_maps_tx: Sender<DisplayMap>) {
-    let listener = TcpListener::bind(format!("0.0.0.0:{}", port)).unwrap();
+    let socket = UdpSocket::bind(format!("0.0.0.0:{}", port)).unwrap();
     println!("Binding to port {}", port);
 
-    for stream in listener.incoming() {
-        let mut stream = stream.unwrap();
+    loop {
+        let mut arr = vec![0u8; DISPLAY_MAP_SZ];
 
-        println!("starting reading remote images");
-        loop {
-            let mut buf = [0u8; 4];
-            stream.read_exact(&mut buf).unwrap();
-            let sz = unsafe {transmute::<[u8; 4], u32>(buf)};
+        socket.recv(&mut arr[..]).unwrap();
 
-            let mut arr = vec![0u8; sz as usize];
-
-            stream.read_exact(&mut arr[..]).unwrap();
-
-
-            if buf.is_empty() {continue;}
-            match bincode::deserialize(&arr[..]) {
-                Ok(display_map) => {
-                    received_maps_tx.send(display_map).unwrap()
-                },
-                Err(_) => {continue;}
-            };
-        }
+        if arr.is_empty() {continue;}
+        match bincode::deserialize(&arr[..]) {
+            Ok(display_map) => {
+                received_maps_tx.send(display_map).unwrap()
+            },
+            Err(_) => {continue;}
+        };
     }
 }
 
 fn send_remote_frames(port: String, rx: Receiver<DisplayMap>) {
-    let mut stream = TcpStream::connect(format!("{}:{}", LOCAL_IP, port)).unwrap();
+    let socket = UdpSocket::bind("0.0.0.0:9797").unwrap();
     for display_map in rx {
-        let encoded = bincode::serialize(&display_map).unwrap();
-        let to_send = &encoded[..];
-        let len = to_send.len() as u32;
-        stream.write_all(&len.to_le_bytes()).unwrap();
-        stream.write_all(&encoded[..]).unwrap();
+        let chunks = display_map.chunks(64000 / 12);
+        for chunk in chunks {
+            let encoded = bincode::serialize(&chunk).unwrap();
+            socket.send_to(&encoded[..], format!("{}:{}", REMOTE_IP, port)).unwrap();
+        }
     }
 }
 
