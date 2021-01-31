@@ -57,14 +57,18 @@ fn get_remote_frames(port: String, received_maps_tx: Sender<DisplayMap>) {
     loop {
         let mut arr = vec![0u8; DISPLAY_MAP_SZ];
 
-        socket.recv(&mut arr[..]).unwrap();
+        let len = socket.recv(&mut arr[..]).unwrap();
 
         if arr.is_empty() {continue;}
         match bincode::deserialize(&arr[..]) {
             Ok(display_map) => {
+                println!("Received packet on length {}", len);
                 received_maps_tx.send(display_map).unwrap()
             },
-            Err(_) => {continue;}
+            Err(_) => {
+                println!("could not deserialize packet");
+                continue;
+            }
         };
     }
 }
