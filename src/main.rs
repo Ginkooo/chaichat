@@ -25,6 +25,7 @@ const ASCII_GREYSCALE: &str = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\\|()1{}
 const LOCAL_IP: &str = "127.0.0.1";
 const REMOTE_IP: &str = "217.182.75.11";
 const DISPLAY_MAP_SZ: usize = 130568;
+const TOMEK_IP: &str = "192.168.1.53";
 
 fn draw_map_on_screen(window: &Window, map: DisplayMap) {
     for (position, chr) in map {
@@ -57,7 +58,7 @@ fn get_remote_frames(port: String, received_maps_tx: Sender<DisplayMap>) {
     loop {
         let mut arr = vec![0u8; DISPLAY_MAP_SZ];
 
-        let len = socket.recv(&mut arr[..]).unwrap();
+         socket.recv(&mut arr[..]).unwrap();
 
         if arr.is_empty() {continue;}
         match bincode::deserialize(&arr[..]) {
@@ -74,7 +75,7 @@ fn get_remote_frames(port: String, received_maps_tx: Sender<DisplayMap>) {
 fn send_remote_frames(port: String, rx: Receiver<DisplayMap>) {
     let socket = UdpSocket::bind("0.0.0.0:9797").unwrap();
     for display_map in rx {
-        let chunks = display_map.chunks(100);
+        let chunks = display_map.chunks(9000 / 12);
         for chunk in chunks {
             let encoded = bincode::serialize(&chunk).unwrap();
             socket.send_to(&encoded[..], format!("{}:{}", REMOTE_IP, port)).unwrap();
