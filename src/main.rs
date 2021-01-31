@@ -62,11 +62,9 @@ fn get_remote_frames(port: String, received_maps_tx: Sender<DisplayMap>) {
         if arr.is_empty() {continue;}
         match bincode::deserialize(&arr[..]) {
             Ok(display_map) => {
-                println!("Received packet on length {}", len);
                 received_maps_tx.send(display_map).unwrap()
             },
             Err(_) => {
-                println!("could not deserialize packet");
                 continue;
             }
         };
