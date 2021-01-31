@@ -75,7 +75,7 @@ fn get_remote_frames(port: String, received_maps_tx: Sender<DisplayMap>) {
 fn send_remote_frames(port: String, rx: Receiver<DisplayMap>) {
     let socket = UdpSocket::bind("0.0.0.0:9797").unwrap();
     for display_map in rx {
-        let chunks = display_map.chunks(9000 / 12);
+        let chunks = display_map.chunks(500);
         for chunk in chunks {
             let encoded = bincode::serialize(&chunk).unwrap();
             socket.send_to(&encoded[..], format!("{}:{}", REMOTE_IP, port)).unwrap();
