@@ -27,6 +27,10 @@ const REMOTE_IP: &str = "217.182.75.11";
 const DISPLAY_MAP_SZ: usize = 130568;
 const TOMEK_IP: &str = "192.168.1.53";
 
+fn ascii_position(ch: u32) -> usize {
+    ASCII_GREYSCALE.chars().position(|c| c == std::char::from_u32(ch).unwrap()).unwrap()
+}
+
 fn draw_map_on_screen(window: &Window, map: DisplayMap) {
     for (position, chr) in map {
         window.mvaddch(position.0, position.1, chr);
@@ -34,14 +38,28 @@ fn draw_map_on_screen(window: &Window, map: DisplayMap) {
 }
 fn get_display_map(frame: ImageBuffer<Luma<u8>, Vec<u8>>, x: i32, old_map: &mut DisplayMap) -> DisplayMap {
     let mut difference_map = DisplayMap::new();
+    let mut all_map = DisplayMap::new();
     for (i, pixel) in frame.enumerate_pixels().enumerate() {
         let pixel_value = pixel.2.data;
         let value = (ASCII_GREYSCALE.len() - 1) * pixel_value[0] as usize/255 + 1;
         let put_y = (i as i32+1)/x;
         let put_x = i as i32 % x;
         let ch = ASCII_GREYSCALE.chars().rev().nth(value).unwrap() as u32;
-        difference_map.push(((put_y, put_x), ch));
+        all_map.push(((put_y, put_x), ch));
     }
+    if old_map.is_empty() {
+        *old_map = all_map.clone();
+        return all_map;
+    }
+    for (old_px, new_px) in old_map.iter().zip(all_map.iter()) {
+        let old_ch_pos = ascii_position(old_px.1);
+        let new_ch_pos = ascii_position(new_px.1);
+        if ((new_ch_pos as i32 - old_ch_pos as i32) as i32).abs() > 1 {
+            println!("Adding new pixl bc the abs value");
+            difference_map.push(((new_px.0.0, new_px.0.1), new_px.1));
+        }
+    }
+    *old_map = all_map;
     difference_map
 }
 
