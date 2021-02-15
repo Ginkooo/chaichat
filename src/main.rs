@@ -2,20 +2,27 @@ extern crate camera_capture;
 extern crate pancurses;
 extern crate image;
 extern crate bincode;
+extern crate crossterm;
+extern crate tui;
+extern crate chrono;
 
 use image::imageops::resize;
 use std::env;
-use std::time::Instant;
-use std::io::prelude::*;
 use camera_capture::Frame;
 use image::imageops::colorops::grayscale;
 use image::{RgbImage, ImageBuffer, Luma, FilterType, Rgb};
-use std::collections::{HashMap, HashSet};
-use std::net::{TcpListener, TcpStream, UdpSocket};
+use std::net::{UdpSocket};
 use std::thread;
 use std::sync::mpsc::{channel, Sender, Receiver};
-use std::mem::transmute;
 use pancurses::Window;
+use std::io;
+use tui::Terminal;
+use tui::backend::CrosstermBackend;
+use tui::widgets::{Block, Borders};
+use tui::buffer::Buffer;
+use tui::style::Style;
+use tui::layout::Rect;
+use chrono::Local;
 
 
 
@@ -31,10 +38,15 @@ fn ascii_position(ch: u32) -> usize {
     ASCII_GREYSCALE.chars().position(|c| c == std::char::from_u32(ch).unwrap()).unwrap()
 }
 
-fn draw_map_on_screen(window: &Window, map: DisplayMap) {
-    for (position, chr) in map {
-        window.mvaddch(position.0, position.1, chr);
-    }
+fn draw_map_on_screen(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, map: DisplayMap) {
+    terminal.draw(|f| {
+        let size = f.size();
+        let block = Block::default().title(Local::now().to_rfc3339()).borders(Borders::ALL);
+        f.render_widget(block, size);
+    }).unwrap();
+    //for (position, chr) in map {
+    //    window.mvaddch(position.0, position.1, std::char::from_u32(chr).unwrap());
+    //}
 }
 fn get_display_map(frame: ImageBuffer<Luma<u8>, Vec<u8>>, x: i32, old_map: &mut DisplayMap) -> DisplayMap {
     let mut difference_map = DisplayMap::new();
@@ -55,7 +67,6 @@ fn get_display_map(frame: ImageBuffer<Luma<u8>, Vec<u8>>, x: i32, old_map: &mut 
         let old_ch_pos = ascii_position(old_px.1);
         let new_ch_pos = ascii_position(new_px.1);
         if ((new_ch_pos as i32 - old_ch_pos as i32) as i32).abs() > 1 {
-            println!("Adding new pixl bc the abs value");
             difference_map.push(((new_px.0.0, new_px.0.1), new_px.1));
         }
     }
@@ -71,17 +82,16 @@ fn fit_frame_to_screen(frame: ImageBuffer<Rgb<u8>, Frame>, y: i32, x: i32) -> Im
 
 fn get_remote_frames(port: String, received_maps_tx: Sender<DisplayMap>) {
     let socket = UdpSocket::bind(format!("0.0.0.0:{}", port)).unwrap();
-    println!("Binding to port {}", port);
 
     loop {
         let mut arr = vec![0u8; DISPLAY_MAP_SZ];
 
-         socket.recv(&mut arr[..]).unwrap();
+        socket.recv(&mut arr[..]).unwrap();
 
         if arr.is_empty() {continue;}
         match bincode::deserialize(&arr[..]) {
             Ok(display_map) => {
-                received_maps_tx.send(display_map).unwrap()
+                received_maps_tx.send(display_map).unwrap();
             },
             Err(_) => {
                 continue;
@@ -96,7 +106,7 @@ fn send_remote_frames(port: String, rx: Receiver<DisplayMap>) {
         let chunks = display_map.chunks(500);
         for chunk in chunks {
             let encoded = bincode::serialize(&chunk).unwrap();
-            socket.send_to(&encoded[..], format!("{}:{}", REMOTE_IP, port)).unwrap();
+            socket.send_to(&encoded[..], format!("{}:{}", LOCAL_IP, port)).unwrap();
         }
     }
 }
@@ -106,7 +116,7 @@ fn run_camera_thread(y: i32, x: i32, camera_maps_tx: Sender<DisplayMap>) {
         let mut old_map = DisplayMap::new();
 
         let cam = camera_capture::create(0).unwrap();
-        let cam = cam.fps(30.0).unwrap().start().unwrap();
+        let cam = cam.fps(15.0).unwrap().start().unwrap();
         for frame in cam {
             let frame = fit_frame_to_screen(frame, y, x);
             let difference_map = get_display_map(frame, x, &mut old_map);
@@ -138,16 +148,16 @@ fn main() {
         }
     };
 
-    let window = pancurses::initscr();
-    let (y, x) = window.get_max_yx();
+    let stdout = io::stdout();
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend).unwrap();
 
     if display_from_remote {
         for display_map in received_maps_rx {
-            draw_map_on_screen(&window, display_map);
-            window.refresh();
+            draw_map_on_screen(&mut terminal, display_map);
         }
     } else {
-        run_camera_thread(y, x, camera_maps_tx);
+        run_camera_thread(50, 50, camera_maps_tx);
         for map in camera_maps_rx {
             sent_maps_tx.send(map).unwrap();
         }
