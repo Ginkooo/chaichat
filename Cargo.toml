@@ -9,5 +9,6 @@ pancurses = "*"
 image = "*"
 bincode = "*"
 crossterm = "*"
-tui = { version = "*", default-features = false, features = ['crossterm'] }
+termion = "*"
+tui = { version = "*", default-features = false, features = ['crossterm', 'termion'] }
 chrono = "*"
