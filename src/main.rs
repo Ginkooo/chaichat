@@ -1,34 +1,23 @@
 extern crate camera_capture;
-extern crate pancurses;
 extern crate image;
 extern crate bincode;
-extern crate crossterm;
 extern crate tui;
-extern crate chrono;
-extern crate termion;
 
 use image::imageops::resize;
 use std::env;
 use camera_capture::Frame;
-use image::imageops::colorops::grayscale;
 use std::collections::HashMap;
-use image::{RgbImage, ImageBuffer, Luma, FilterType, Rgb};
-use std::net::{UdpSocket};
+use image::{RgbImage, ImageBuffer, FilterType, Rgb};
+use std::net::UdpSocket;
 use std::thread;
 use std::sync::mpsc::{channel, Sender, Receiver};
-use std::io::{Write, stdout};
+use std::io::stdout;
 use tui::Terminal;
-use tui::backend::{CrosstermBackend, TermionBackend};
-use tui::widgets::{Block, Borders, Clear, canvas::{Canvas, Rectangle, Map, MapResolution}};
+use tui::backend::CrosstermBackend;
+use tui::widgets::{Borders, Clear, canvas::{Canvas, Rectangle, Map}};
 use tui::style::Color;
 use std::io;
-use std::time::Instant;
-use std::mem::size_of;
 use tui::symbols::Marker;
-use crossterm::{
-    terminal::{enable_raw_mode, disable_raw_mode, EnterAlternateScreen},
-    execute
-};
 
 
 
