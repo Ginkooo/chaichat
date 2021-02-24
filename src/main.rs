@@ -24,6 +24,7 @@ use tui::style::Color;
 use std::io;
 use std::time::Instant;
 use std::mem::size_of;
+use tui::symbols::Marker;
 use crossterm::{
     terminal::{enable_raw_mode, disable_raw_mode, EnterAlternateScreen},
     execute
@@ -51,6 +52,7 @@ fn draw_buffer_on_screen(terminal: &mut TerminalWithBackend, buffer: &mut Buffer
         let width = size.width as f64;
         let height = size.height as f64;
         let canvas = Canvas::default()
+            .marker(Marker::Block)
             .x_bounds([0.0, width])
             .y_bounds([0.0, height])
             .paint(|ctx| {
@@ -118,7 +120,7 @@ fn get_remote_frames(port: String, received_maps_tx: Sender<DisplayMap>) {
 fn send_remote_frames(port: String, rx: Receiver<DisplayMap>) {
     let socket = UdpSocket::bind("0.0.0.0:9797").unwrap();
     for display_map in rx {
-        let chunks = display_map.chunks(8972 / size_of::<DisplayMap>());
+        let chunks = display_map.chunks(5300);
         for chunk in chunks {
             let encoded = bincode::serialize(&chunk).unwrap();
             socket.send_to(&encoded[..], format!("{}:{}", LOCAL_IP, port)).unwrap();
