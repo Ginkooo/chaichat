@@ -1,12 +1,8 @@
-extern crate camera_capture;
-extern crate image;
-extern crate bincode;
-extern crate tui;
-
 mod screen;
 mod types;
 mod network;
 mod utils;
+mod chunk;
 
 use std::env;
 use std::thread;

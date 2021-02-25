@@ -2,10 +2,12 @@
 name = "terminal-screen-share"
 version = "0.1.0"
 authors = ["Piotr Czajka <czajka@protonmail.com>"]
+edition = "2018"
 
 [dependencies]
 camera_capture = "0.5.0"
 image = "*"
 bincode = "*"
 crossterm = "*"
+serde = { version = "*", features = ["derive"] }
 tui = { version = "*", default-features = false, features = ['crossterm'] }

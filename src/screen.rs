@@ -4,7 +4,7 @@ use std::io;
 use tui::backend::CrosstermBackend;
 use tui::widgets::canvas::{Canvas, Rectangle};
 use tui::symbols::Marker;
-use types::Buffer;
+use crate::types::Buffer;
 
 type TerminalWithBackend = Terminal<CrosstermBackend<io::Stdout>>;
 

@@ -1,5 +1,5 @@
 use std::sync::mpsc::{Sender, Receiver};
-use types::DisplayMap;
+use crate::types::DisplayMap;
 use std::net::UdpSocket;
 
 
@@ -35,7 +35,7 @@ pub fn send_remote_frames(port: String, rx: Receiver<DisplayMap>) {
         let chunks = display_map.chunks(5300);
         for chunk in chunks {
             let encoded = bincode::serialize(&chunk).unwrap();
-            socket.send_to(&encoded[..], format!("{}:{}", LOCAL_IP, port)).unwrap();
+            socket.send_to(&encoded[..], format!("{}:{}", REMOTE_IP, port)).unwrap();
         }
     }
 }

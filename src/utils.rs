@@ -1,4 +1,4 @@
-use types::DisplayMap;
+use crate::types::DisplayMap;
 use image::imageops::resize;
 use camera_capture::Frame;
 use image::{RgbImage, ImageBuffer, FilterType, Rgb};
@@ -19,7 +19,7 @@ fn get_display_map(frame: ImageBuffer<Rgb<u8>, Vec<u8>>, old_map: &mut DisplayMa
         let old_sum: i32 = old_px.1.iter().map(|&x| x as i32).sum();
         let new_sum: i32 = new_px.1.iter().map(|&x| x as i32).sum();
         let diff: i32 = old_sum - new_sum;
-        if diff.abs() > 10 {
+        if diff.abs() > 20 {
             difference_map.push(((new_px.0.0, new_px.0.1), new_px.1));
         }
     }
