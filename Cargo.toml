@@ -11,3 +11,4 @@ bincode = "*"
 crossterm = "*"
 serde = { version = "*", features = ["derive"] }
 tui = { version = "*", default-features = false, features = ['crossterm'] }
+chrono = { version = "*", features = ["serde"] }
