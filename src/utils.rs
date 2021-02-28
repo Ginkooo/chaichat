@@ -1,4 +1,4 @@
-use crate::types::CameraFrame;
+use crate::types::{CameraFrame, Message};
 use camera_capture::Frame;
 use image::imageops::resize;
 use image::{FilterType, ImageBuffer, Rgb, RgbImage};
@@ -42,7 +42,7 @@ fn fit_frame_to_screen(
     resize(&frame, x as u32, y as u32, FilterType::Nearest)
 }
 
-pub fn run_camera_thread(y: u16, x: u16, camera_frames_tx: Sender<CameraFrame>) {
+pub fn run_camera_thread(y: u16, x: u16, camera_frames_tx: Sender<Message>) {
     thread::spawn(move || {
         let mut old_frame = CameraFrame::default();
 
@@ -56,7 +56,7 @@ pub fn run_camera_thread(y: u16, x: u16, camera_frames_tx: Sender<CameraFrame>) 
             let frame = fit_frame_to_screen(frame, y, x);
             let camera_frame = get_camera_frame(frame, &mut old_frame);
             camera_frames_tx
-                .send(camera_frame)
+                .send(Message::CameraFrame(camera_frame))
                 .expect("failed to send camera map to channel");
         }
     });

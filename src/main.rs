@@ -10,31 +10,62 @@ use std::sync::mpsc::channel;
 use std::thread;
 use tui::backend::CrosstermBackend;
 use tui::Terminal;
-use types::Buffer;
+use types::{Buffer, CameraFrame, Message};
 use utils::run_camera_thread;
+use crossterm::terminal::{enable_raw_mode, disable_raw_mode};
+use crossterm::event::{poll, read, Event, KeyCode, KeyEvent};
+use std::time::Duration;
+use std::sync::mpsc::Sender;
+
+fn event_loop(senders: Vec<Sender<Message>>) {
+    loop {
+        if poll(Duration::from_millis(100)).unwrap() {
+            let event = read().unwrap();
+
+            match event {
+                Event::Key(key_event) => {
+                    if key_event == KeyCode::Esc.into() {
+                        for s in &senders {
+                            s.send(Message::End).unwrap();
+                        }
+                    }
+                },
+                Event::Resize(x, y) => {
+                }
+                Event::Mouse(e) => {}
+            }
+        }
+    }
+}
 
 fn main() {
-    let (received_frames_tx, received_frames_rx) = channel();
-    let (camera_frames_tx, camera_frames_rx) = channel();
-    let (sent_maps_tx, sent_maps_rx) = channel();
+    let (received_messages_tx, received_messages_rx) = channel();
+    let (camera_messages_tx, camera_messages_rx) = channel();
+    let (sent_messages_tx, sent_messages_rx) = channel();
+    let senders = vec![received_messages_tx.clone(), camera_messages_tx.clone(), sent_messages_tx.clone()];
+
     let self_bind_port = env::args().nth(1).expect("there is no first argument");
     let other_port = env::args().nth(2);
     let mut display_from_remote = true;
-    let mut read_thread: Option<thread::JoinHandle<()>> = None;
-    let mut send_thread: Option<thread::JoinHandle<()>> = None;
     match other_port {
         Some(port) => {
             display_from_remote = false;
-            send_thread = Some(thread::spawn(move || {
-                send_remote_frames(port, sent_maps_rx);
-            }));
+            thread::spawn(move || {
+                send_remote_frames(port, sent_messages_rx);
+            });
         }
         None => {
-            read_thread = Some(thread::spawn(move || {
-                get_remote_frames(self_bind_port, received_frames_tx);
-            }));
+            thread::spawn(move || {
+                get_remote_frames(self_bind_port, received_messages_tx);
+            });
         }
     };
+
+    enable_raw_mode().unwrap();
+
+    thread::spawn(|| {
+        event_loop(senders);
+    });
 
     let stdout = stdout();
 
@@ -48,29 +79,28 @@ fn main() {
     let buffer = &mut Buffer::new();
 
     if display_from_remote {
-        for camera_frame in received_frames_rx {
-            for (pos, pixel) in &camera_frame.pixels {
-                buffer.insert(*pos, *pixel);
+        for message in received_messages_rx {
+            match message {
+                Message::End => {
+                    break;
+                },
+                Message::CameraFrame(camera_frame) => {
+                    for (pos, pixel) in &camera_frame.pixels {
+                        buffer.insert(*pos, *pixel);
+                    }
+                    screen::draw_buffer_on_screen(&mut terminal, buffer);
+                }
             }
-            screen::draw_buffer_on_screen(&mut terminal, buffer);
         }
     } else {
-        run_camera_thread(height, width, camera_frames_tx);
-        for map in camera_frames_rx {
-            sent_maps_tx
-                .send(map)
-                .expect("failed to send camera frame to channel");
+        run_camera_thread(height, width, camera_messages_tx);
+        for map in camera_messages_rx {
+            match sent_messages_tx.send(map) {
+                Ok(_) => {},
+                Err(_) => break
+            }
         }
     }
 
-    match read_thread {
-        Some(t) => {
-            t.join().expect("failed to join read thread");
-        }
-        None => {}
-    };
-    match send_thread {
-        Some(t) => t.join().expect("failed to join send thread"),
-        None => {}
-    };
+    disable_raw_mode().unwrap();
 }
