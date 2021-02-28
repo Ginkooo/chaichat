@@ -2,6 +2,8 @@ mod network;
 mod screen;
 mod types;
 mod utils;
+mod camera;
+mod camera_frame;
 
 use network::{get_remote_frames, send_remote_frames};
 use std::env;
@@ -9,13 +11,15 @@ use std::io::stdout;
 use std::sync::mpsc::channel;
 use std::thread;
 use tui::backend::CrosstermBackend;
+use crate::camera_frame::CameraFrame;
 use tui::Terminal;
-use types::{Buffer, CameraFrame, Message};
-use utils::run_camera_thread;
+use types::{Buffer, Message};
 use crossterm::terminal::{enable_raw_mode, disable_raw_mode};
-use crossterm::event::{poll, read, Event, KeyCode, KeyEvent};
+use crossterm::event::{poll, read, Event, KeyCode};
 use std::time::Duration;
 use std::sync::mpsc::Sender;
+use crate::camera::run_camera_thread;
+use chrono::Utc;
 
 fn event_loop(senders: Vec<Sender<Message>>) {
     loop {
@@ -41,6 +45,7 @@ fn event_loop(senders: Vec<Sender<Message>>) {
 fn main() {
     let (received_messages_tx, received_messages_rx) = channel();
     let (camera_messages_tx, camera_messages_rx) = channel();
+    let (raw_camera_images_tx, raw_camera_images_rx) = channel();
     let (sent_messages_tx, sent_messages_rx) = channel();
     let senders = vec![received_messages_tx.clone(), camera_messages_tx.clone(), sent_messages_tx.clone()];
 
@@ -93,9 +98,11 @@ fn main() {
             }
         }
     } else {
-        run_camera_thread(height, width, camera_messages_tx);
-        for map in camera_messages_rx {
-            match sent_messages_tx.send(map) {
+        run_camera_thread(height, width, raw_camera_images_tx);
+        let old_frame = &mut CameraFrame::default();
+        for camera_image in raw_camera_images_rx {
+            let camera_frame = CameraFrame::from_camera_image(camera_image, width, height, old_frame);
+            match sent_messages_tx.send(Message::CameraFrame(camera_frame)) {
                 Ok(_) => {},
                 Err(_) => break
             }

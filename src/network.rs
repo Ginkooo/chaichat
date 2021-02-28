@@ -1,12 +1,13 @@
-use crate::types::{CameraFrame, Message};
+use crate::types::Message;
 use std::net::UdpSocket;
 use std::sync::mpsc::{Receiver, Sender};
+use crate::camera_frame::CameraFrame;
 
 const DISPLAY_MAP_SZ: usize = 200568;
 const LOCAL_IP: &str = "127.0.0.1";
 const REMOTE_IP: &str = "217.182.75.11";
 
-pub fn get_remote_frames(port: String, received_frames_tx: Sender<Message>) {
+pub fn get_remote_frames(port: String, received_messages_tx: Sender<Message>) {
     let socket =
         UdpSocket::bind(format!("0.0.0.0:{}", port)).expect("failed to bind receiving udp socket");
 
@@ -22,7 +23,7 @@ pub fn get_remote_frames(port: String, received_frames_tx: Sender<Message>) {
         }
         match bincode::deserialize(&arr[..]) {
             Ok(message) => {
-                match received_frames_tx.send(message) {
+                match received_messages_tx.send(message) {
                     Ok(_) => {}
                     Err(_) => break
                 };
