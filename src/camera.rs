@@ -11,11 +11,14 @@ pub fn run_camera_thread() -> Res<Receiver<CameraFrame>> {
     let sender_clone = sender.clone();
 
     thread::spawn(move || {
-        let mut cam = Camera::new(
+        let cam = Camera::new(
             0,
             Some(CameraFormat::new_from(640, 480, FrameFormat::MJPEG, 30)),
-        )
-        .expect("Cannot launch camera");
+        );
+        if cam.as_ref().is_err() {
+            return;
+        }
+        let mut cam = cam.unwrap();
         cam.open_stream().unwrap();
         loop {
             let frame = cam.frame().unwrap();

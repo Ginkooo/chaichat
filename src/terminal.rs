@@ -2,12 +2,15 @@ use std::io::{stdout, Stdout};
 
 use crate::camera_frame::CameraFrame;
 use crate::commands::handle_command;
+use crate::types::CameraImage;
 use crate::types::Message;
 use async_std::channel::{Receiver, Sender};
 use crossbeam::channel::Receiver as SyncReceiver;
 use crossterm::event::Event;
 use crossterm::event::KeyCode;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
+use image::ImageBuffer;
+use std::time::Duration;
 use tui::layout::Rect;
 use tui::layout::{Constraint, Direction, Layout};
 use tui::style::Color;
@@ -104,15 +107,15 @@ impl ChaiTerminal {
             Err(_) => {}
         }
 
-        let camera_frame = camera_frames.try_recv();
-        if camera_frame.is_err() {
-            return Ok(());
-        }
-        self.prev_camera_frame = Some(camera_frame.expect("Camera frame should exist by now"));
+        let camera_frame = camera_frames
+            .recv_timeout(Duration::from_millis(5))
+            .unwrap_or(CameraFrame::from_camera_image(CameraImage::new(600, 600)));
+        self.prev_camera_frame = Some(camera_frame);
         let mut camera_frame = self
             .prev_camera_frame
             .clone()
             .expect("Prev camera frame should exist by now");
+
         camera_frame = camera_frame
             .clone()
             .resize((width as f64 * 0.3) as u16, (height as f64 * 0.3) as u16);
