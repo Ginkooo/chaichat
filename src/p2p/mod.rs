@@ -8,6 +8,7 @@ use futures::executor::block_on;
 use futures::future::FutureExt;
 use futures::stream::StreamExt;
 use libp2p::core::multiaddr::{Multiaddr, Protocol};
+use libp2p::floodsub;
 use libp2p::identify::{IdentifyEvent, IdentifyInfo};
 use libp2p::relay::v2::client;
 use libp2p::swarm::{SwarmBuilder, SwarmEvent};
@@ -16,7 +17,11 @@ use libp2p::{identity, PeerId};
 use log::info;
 use std::convert::TryInto;
 use std::error::Error;
+use std::fs::File;
+use std::io::Read;
+use std::io::Write;
 use std::net::Ipv4Addr;
+use std::str::FromStr;
 
 use crate::consts::RELAY_MULTIADDR;
 
@@ -28,8 +33,25 @@ pub struct P2p {
 
 impl P2p {
     pub fn new() -> Self {
-        let local_key = identity::Keypair::generate_ed25519();
+        let mut local_key = identity::Keypair::generate_ed25519();
+        match File::open("private_key") {
+            Ok(mut file) => {
+                let mut v: Vec<u8> = Vec::new();
+                file.read_to_end(&mut v).unwrap();
+                local_key = identity::Keypair::from_protobuf_encoding(&v[..]).unwrap();
+            }
+            Err(_) => {}
+        }
+        let encoded = local_key.to_protobuf_encoding().unwrap();
+
+        File::create("private_key")
+            .unwrap()
+            .write(&encoded)
+            .unwrap();
+
         let local_peer_id = PeerId::from(local_key.public());
+
+        dbg!(&local_peer_id);
 
         Self {
             relay_multiaddr: RELAY_MULTIADDR.parse().unwrap(),
@@ -39,10 +61,16 @@ impl P2p {
     }
 
     pub fn start(&self) -> Result<(), Box<dyn Error>> {
+        let peer_ids_to_dial =
+            [PeerId::from_str("12D3KooWG8YedJy1PhUQjvWQMa8C4bqZuAz3pLDvLyqbfiVSunkh").unwrap()];
         let (transport, client) =
             transport::create_transport(self.key.clone(), self.peer_id.clone());
 
-        let behaviour = Behaviour::new(self.key.public(), client);
+        let main_topic = floodsub::Topic::new("main");
+
+        let mut behaviour = Behaviour::new(self.key.public(), client);
+
+        behaviour.floodsub.subscribe(main_topic.clone());
 
         let mut swarm = SwarmBuilder::new(transport, behaviour, self.peer_id)
             .dial_concurrency_factor(10_u8.try_into().unwrap())
@@ -81,14 +109,16 @@ impl P2p {
             .listen_on(self.relay_multiaddr.clone().with(Protocol::P2pCircuit))
             .unwrap();
 
-        swarm
-            .dial(
-                self.relay_multiaddr
-                    .clone()
-                    .with(Protocol::P2pCircuit)
-                    .with(Protocol::P2p(self.peer_id.into())),
-            )
-            .unwrap();
+        for peer_id in peer_ids_to_dial {
+            swarm
+                .dial(
+                    self.relay_multiaddr
+                        .clone()
+                        .with(Protocol::P2pCircuit)
+                        .with(Protocol::P2p(peer_id.into())),
+                )
+                .unwrap();
+        }
 
         self.run_swarm_loop(&mut swarm);
 
@@ -148,6 +178,9 @@ impl P2p {
                     }
                     SwarmEvent::Behaviour(Event::Identify(event)) => {
                         info!("{:?}", event)
+                    }
+                    SwarmEvent::Behaviour(Event::Floodsub(event)) => {
+                        info!("{:?}", event);
                     }
                     SwarmEvent::Behaviour(Event::Ping(_)) => {}
                     SwarmEvent::ConnectionEstablished {
