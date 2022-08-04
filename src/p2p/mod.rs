@@ -207,6 +207,7 @@ impl P2p {
                         }
                         SwarmEvent::Behaviour(Event::Floodsub(FloodsubEvent::Message(msg))) => {
                             let message = bincode::deserialize::<Message>(&msg.data).unwrap_or(Message::Empty);
+                            dbg!(&message);
                             self.in_sender.send(message).await.unwrap();
                         }
                         SwarmEvent::Behaviour(Event::Ping(event)) => {
