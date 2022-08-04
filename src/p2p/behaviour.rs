@@ -24,7 +24,7 @@ impl Behaviour {
         Behaviour {
             floodsub: Floodsub::new(peer_id),
             relay_client: client,
-            ping: Ping::new(PingConfig::new()),
+            ping: Ping::new(PingConfig::new().with_keep_alive(true)),
             identify: Identify::new(IdentifyConfig::new("/TODO/0.0.1".to_string(), public_key)),
             dcutr: dcutr::behaviour::Behaviour::new(),
         }
