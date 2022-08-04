@@ -68,8 +68,11 @@ impl P2p {
     }
 
     pub fn start(&self) -> Result<(), Box<dyn Error>> {
-        let peer_ids_to_dial =
-            [PeerId::from_str("12D3KooWRmxptk9mVYWu69nrDjJtSdRwsqCFLpGiWapJZTZVCuMr").unwrap()];
+        let peer_ids_to_dial = [
+            PeerId::from_str("12D3KooWRmxptk9mVYWu69nrDjJtSdRwsqCFLpGiWapJZTZVCuMr").unwrap(),
+            PeerId::from_str("12D3KooWJiXZEyXJDoh1FDuCuep2xdRDcm26asX743a9Yv1R3kQU").unwrap(),
+        ];
+
         let (transport, client) =
             transport::create_transport(self.key.clone(), self.peer_id.clone());
 
