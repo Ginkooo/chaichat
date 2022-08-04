@@ -1,21 +1,31 @@
-use crate::types::CameraImage;
-use camera_capture;
+use crossbeam::channel::{unbounded, Receiver};
 use image::RgbImage;
-use std::sync::mpsc::Sender;
+use nokhwa::{Camera, CameraFormat, FrameFormat};
 use std::thread;
 
-pub fn run_camera_thread(y: u16, x: u16, raw_camera_images_tx: Sender<CameraImage>) {
+use crate::camera_frame::CameraFrame;
+use crate::types::{CameraImage, Res};
+
+pub fn run_camera_thread() -> Res<Receiver<CameraFrame>> {
+    let (sender, receiver) = unbounded();
+    let sender_clone = sender.clone();
+
     thread::spawn(move || {
-        let cam = camera_capture::create(0).expect("failed to create camera handle");
-        let cam = cam
-            .fps(30.0)
-            .expect("failed to set FPS mode on camera")
-            .start()
-            .expect("failed to start camera");
-        for frame in cam {
+        let mut cam = Camera::new(
+            0,
+            Some(CameraFormat::new_from(640, 480, FrameFormat::MJPEG, 30)),
+        )
+        .expect("Cannot launch camera");
+        cam.open_stream().unwrap();
+        loop {
+            let frame = cam.frame().unwrap();
             let frame = RgbImage::from_raw(frame.width(), frame.height(), frame.to_vec())
                 .expect("failed to create image from camera frame");
-            raw_camera_images_tx.send(frame).unwrap();
+            let frame = CameraImage::from(frame);
+            let frame = CameraFrame::from_camera_image(frame);
+            sender_clone.send(frame).ok();
         }
     });
+
+    Ok(receiver)
 }

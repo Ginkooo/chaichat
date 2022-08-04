@@ -5,10 +5,32 @@ authors = ["Piotr Czajka <czajka@protonmail.com>"]
 edition = "2018"
 
 [dependencies]
-camera_capture = "0.5.0"
 image = "*"
-bincode = "*"
+env_logger = "*"
 crossterm = "*"
+crossbeam = "*"
 serde = { version = "*", features = ["derive"] }
 tui = { version = "*", default-features = false, features = ['crossterm'] }
 chrono = { version = "*", features = ["serde"] }
+reqwest = { version = "*", features = ["blocking", "json"] }
+tokio = { version = "1.20.0", features = ["full"] }
+asynchronous-codec = "0.6"
+bytes = "1"
+either = "1.6.0"
+futures = "0.3.1"
+futures-timer = "3.0"
+instant = "0.1.11"
+libp2p-core = { version = "0.35.0", git = "https://github.com/libp2p/rust-libp2p" }
+libp2p-swarm = { version = "0.38.0", git = "https://github.com/libp2p/rust-libp2p" }
+log = "0.4"
+prost-codec = { version = "0.1", git = "https://github.com/libp2p/rust-libp2p" }
+prost = "0.10"
+thiserror = "1.0"
+void = "1"
+libp2p = { git = "https://github.com/libp2p/rust-libp2p", default-features = false,  features = ["dcutr", "relay", "plaintext", "identify", "tcp-async-io", "ping", "noise", "dns-async-std", "floodsub"] }
+libp2p-yamux = { git = "https://github.com/libp2p/rust-libp2p" }
+const_format = "*"
+
+[dependencies.nokhwa]
+version = "*"
+features = ["input-v4l"]

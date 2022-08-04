@@ -1,7 +1,7 @@
+use crate::camera_frame::CameraFrame;
 use crate::types::Message;
 use std::net::UdpSocket;
 use std::sync::mpsc::{Receiver, Sender};
-use crate::camera_frame::CameraFrame;
 
 const DISPLAY_MAP_SZ: usize = 200568;
 const LOCAL_IP: &str = "127.0.0.1";
@@ -25,7 +25,7 @@ pub fn get_remote_frames(port: String, received_messages_tx: Sender<Message>) {
             Ok(message) => {
                 match received_messages_tx.send(message) {
                     Ok(_) => {}
-                    Err(_) => break
+                    Err(_) => break,
                 };
             }
             Err(_) => {
@@ -42,9 +42,9 @@ pub fn send_remote_frames(port: String, rx: Receiver<Message>) {
         match message {
             Message::End => {
                 break;
-            },
+            }
             Message::CameraFrame(camera_frame) => {
-                let chunks = camera_frame.pixels.chunks(5300);
+                let chunks = camera_frame.get_pixels().chunks(5300);
                 for chunk in chunks {
                     let mut camera_frame = CameraFrame::default();
                     camera_frame.pixels = chunk.to_vec();
