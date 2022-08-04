@@ -4,9 +4,15 @@ mod transport;
 
 use crate::p2p::behaviour::Behaviour;
 use crate::p2p::event::Event;
+use async_std::{io, task};
+use dirs;
 use futures::executor::block_on;
 use futures::future::FutureExt;
-use futures::stream::StreamExt;
+use futures::AsyncReadExt;
+use futures::{
+    prelude::{stream::StreamExt, *},
+    select,
+};
 use libp2p::core::multiaddr::{Multiaddr, Protocol};
 use libp2p::floodsub;
 use libp2p::identify::{IdentifyEvent, IdentifyInfo};
@@ -34,20 +40,21 @@ pub struct P2p {
 impl P2p {
     pub fn new() -> Self {
         let mut local_key = identity::Keypair::generate_ed25519();
-        match File::open("/tmp/private_key") {
+        let mut path = dirs::config_dir().unwrap();
+        path.push("chaichar_private_key");
+
+        match File::open(&path) {
             Ok(mut file) => {
                 let mut v: Vec<u8> = Vec::new();
                 file.read_to_end(&mut v).unwrap();
                 local_key = identity::Keypair::from_protobuf_encoding(&v[..]).unwrap();
             }
             Err(_) => {}
-        }
+        };
+
         let encoded = local_key.to_protobuf_encoding().unwrap();
 
-        File::create("private_key")
-            .unwrap()
-            .write(&encoded)
-            .unwrap();
+        File::create(&path).unwrap().write(&encoded).unwrap();
 
         let local_peer_id = PeerId::from(local_key.public());
 
@@ -62,7 +69,7 @@ impl P2p {
 
     pub fn start(&self) -> Result<(), Box<dyn Error>> {
         let peer_ids_to_dial =
-            [PeerId::from_str("12D3KooWG8YedJy1PhUQjvWQMa8C4bqZuAz3pLDvLyqbfiVSunkh").unwrap()];
+            [PeerId::from_str("12D3KooWRmxptk9mVYWu69nrDjJtSdRwsqCFLpGiWapJZTZVCuMr").unwrap()];
         let (transport, client) =
             transport::create_transport(self.key.clone(), self.peer_id.clone());
 
@@ -120,7 +127,7 @@ impl P2p {
                 .unwrap();
         }
 
-        self.run_swarm_loop(&mut swarm);
+        self.run_swarm_loop(&mut swarm, main_topic.clone());
 
         Ok(())
     }
@@ -158,41 +165,47 @@ impl P2p {
         });
     }
 
-    fn run_swarm_loop(&self, swarm: &mut Swarm<Behaviour>) {
+    fn run_swarm_loop(&self, swarm: &mut Swarm<Behaviour>, topic: floodsub::Topic) {
+        let mut stdin = io::BufReader::new(io::stdin()).lines().fuse();
         block_on(async {
             loop {
-                match swarm.next().await.unwrap() {
-                    SwarmEvent::NewListenAddr { address, .. } => {
-                        info!("Listening on {:?}", address);
+                select!(
+                    line = stdin.select_next_some() => {
+                        swarm.behaviour_mut().floodsub.publish(topic.clone(), line.unwrap().as_bytes());
                     }
-                    SwarmEvent::Behaviour(Event::Relay(
-                        client::Event::ReservationReqAccepted { .. },
-                    )) => {
-                        info!("Relay accepted our reservation request.");
+                    event = swarm.select_next_some() => match event {
+                        SwarmEvent::NewListenAddr { address, .. } => {
+                            info!("Listening on {:?}", address);
+                        }
+                        SwarmEvent::Behaviour(Event::Relay(
+                            client::Event::ReservationReqAccepted { .. },
+                        )) => {
+                            info!("Relay accepted our reservation request.");
+                        }
+                        SwarmEvent::Behaviour(Event::Relay(event)) => {
+                            info!("{:?}", event)
+                        }
+                        SwarmEvent::Behaviour(Event::Dcutr(event)) => {
+                            info!("{:?}", event)
+                        }
+                        SwarmEvent::Behaviour(Event::Identify(event)) => {
+                            info!("{:?}", event)
+                        }
+                        SwarmEvent::Behaviour(Event::Floodsub(event)) => {
+                            info!("{:?}", event);
+                        }
+                        SwarmEvent::Behaviour(Event::Ping(_)) => {}
+                        SwarmEvent::ConnectionEstablished {
+                            peer_id, endpoint, ..
+                        } => {
+                            info!("Established connection to {:?} via {:?}", peer_id, endpoint);
+                        }
+                        SwarmEvent::OutgoingConnectionError { peer_id, error } => {
+                            info!("Outgoing connection error to {:?}: {:?}", peer_id, error);
+                        }
+                        _ => {}
                     }
-                    SwarmEvent::Behaviour(Event::Relay(event)) => {
-                        info!("{:?}", event)
-                    }
-                    SwarmEvent::Behaviour(Event::Dcutr(event)) => {
-                        info!("{:?}", event)
-                    }
-                    SwarmEvent::Behaviour(Event::Identify(event)) => {
-                        info!("{:?}", event)
-                    }
-                    SwarmEvent::Behaviour(Event::Floodsub(event)) => {
-                        info!("{:?}", event);
-                    }
-                    SwarmEvent::Behaviour(Event::Ping(_)) => {}
-                    SwarmEvent::ConnectionEstablished {
-                        peer_id, endpoint, ..
-                    } => {
-                        info!("Established connection to {:?} via {:?}", peer_id, endpoint);
-                    }
-                    SwarmEvent::OutgoingConnectionError { peer_id, error } => {
-                        info!("Outgoing connection error to {:?}: {:?}", peer_id, error);
-                    }
-                    _ => {}
-                }
+                );
             }
         });
     }
