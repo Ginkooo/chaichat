@@ -199,6 +199,7 @@ impl P2p {
                             peer_id, endpoint, ..
                         } => {
                             info!("Established connection to {:?} via {:?}", peer_id, endpoint);
+                            swarm.behaviour_mut().floodsub.add_node_to_partial_view(peer_id);
                         }
                         SwarmEvent::OutgoingConnectionError { peer_id, error } => {
                             info!("Outgoing connection error to {:?}: {:?}", peer_id, error);
