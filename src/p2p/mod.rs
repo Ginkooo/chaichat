@@ -34,7 +34,7 @@ pub struct P2p {
 impl P2p {
     pub fn new() -> Self {
         let mut local_key = identity::Keypair::generate_ed25519();
-        match File::open("private_key") {
+        match File::open("/tmp/private_key") {
             Ok(mut file) => {
                 let mut v: Vec<u8> = Vec::new();
                 file.read_to_end(&mut v).unwrap();
