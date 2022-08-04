@@ -4,7 +4,10 @@ mod transport;
 
 use crate::p2p::behaviour::Behaviour;
 use crate::p2p::event::Event;
+use crate::types::Message;
 use async_std::{io, task};
+use bincode;
+use crossbeam::channel::{Receiver, Sender};
 use dirs;
 use futures::executor::block_on;
 use futures::future::FutureExt;
@@ -14,7 +17,7 @@ use futures::{
     select,
 };
 use libp2p::core::multiaddr::{Multiaddr, Protocol};
-use libp2p::floodsub;
+use libp2p::floodsub::{self, FloodsubEvent};
 use libp2p::identify::{IdentifyEvent, IdentifyInfo};
 use libp2p::relay::v2::client;
 use libp2p::swarm::{SwarmBuilder, SwarmEvent};
@@ -35,10 +38,12 @@ pub struct P2p {
     relay_multiaddr: Multiaddr,
     peer_id: PeerId,
     key: identity::Keypair,
+    in_sender: Sender<Message>,
+    out_receiver: Receiver<Message>,
 }
 
 impl P2p {
-    pub fn new() -> Self {
+    pub fn new(in_sender: Sender<Message>, out_receiver: Receiver<Message>) -> Self {
         let mut local_key = identity::Keypair::generate_ed25519();
         let mut path = dirs::config_dir().unwrap();
         path.push("chaichar_private_key");
@@ -64,6 +69,8 @@ impl P2p {
             relay_multiaddr: RELAY_MULTIADDR.parse().unwrap(),
             peer_id: local_peer_id,
             key: local_key,
+            in_sender,
+            out_receiver,
         }
     }
 
@@ -174,7 +181,10 @@ impl P2p {
             loop {
                 select!(
                     line = stdin.select_next_some() => {
-                        swarm.behaviour_mut().floodsub.publish(topic.clone(), line.unwrap().as_bytes());
+                        let s = line.unwrap().to_string();
+                        let msg = Message::Text(s);
+                        let encoded_msg = bincode::serialize(&msg).unwrap();
+                        swarm.behaviour_mut().floodsub.publish(topic.clone(), encoded_msg);
                     }
                     event = swarm.select_next_some() => match event {
                         SwarmEvent::NewListenAddr { address, .. } => {
@@ -194,8 +204,9 @@ impl P2p {
                         SwarmEvent::Behaviour(Event::Identify(event)) => {
                             info!("{:?}", event)
                         }
-                        SwarmEvent::Behaviour(Event::Floodsub(event)) => {
-                            info!("{:?}", event);
+                        SwarmEvent::Behaviour(Event::Floodsub(FloodsubEvent::Message(msg))) => {
+                            let message = bincode::deserialize::<Message>(&msg.data).unwrap_or(Message::Empty);
+                            dbg!(message);
                         }
                         SwarmEvent::Behaviour(Event::Ping(event)) => {
                         dbg!(event);

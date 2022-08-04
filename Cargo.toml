@@ -11,6 +11,7 @@ env_logger = "*"
 crossterm = "*"
 crossbeam = "*"
 serde = { version = "*", features = ["derive"] }
+bincode = "*"
 tui = { version = "*", default-features = false, features = ['crossterm'] }
 chrono = { version = "*", features = ["serde"] }
 reqwest = { version = "*", features = ["blocking", "json"] }

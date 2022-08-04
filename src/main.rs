@@ -10,16 +10,20 @@ mod utils;
 
 use crate::p2p::P2p;
 use camera::run_camera_thread;
+use crossbeam::channel;
 use crossbeam::scope;
 use env_logger;
 use input::start_input_event_thread;
 use terminal::ChaiTerminal;
-use types::Res;
+use types::{Message, Res};
 
 fn main() -> Res<()> {
     env_logger::init();
 
-    let p2p = P2p::new();
+    let (out_p2p_sender, out_p2p_receiver) = channel::unbounded::<Message>();
+    let (in_p2p_sender, in_p2p_receiver) = channel::unbounded::<Message>();
+
+    let p2p = P2p::new(in_p2p_sender, out_p2p_receiver);
 
     p2p.start().unwrap();
 
