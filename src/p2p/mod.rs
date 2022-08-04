@@ -197,7 +197,9 @@ impl P2p {
                         SwarmEvent::Behaviour(Event::Floodsub(event)) => {
                             info!("{:?}", event);
                         }
-                        SwarmEvent::Behaviour(Event::Ping(_)) => {}
+                        SwarmEvent::Behaviour(Event::Ping(event)) => {
+                        dbg!(event);
+                        }
                         SwarmEvent::ConnectionEstablished {
                             peer_id, endpoint, ..
                         } => {
