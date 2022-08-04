@@ -2,7 +2,9 @@ use std::io::{stdout, Stdout};
 
 use crate::camera_frame::CameraFrame;
 use crate::commands::handle_command;
-use crossbeam::channel::Receiver;
+use crate::types::Message;
+use async_std::channel::{Receiver, Sender};
+use crossbeam::channel::Receiver as SyncReceiver;
 use crossterm::event::Event;
 use crossterm::event::KeyCode;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
@@ -47,8 +49,10 @@ impl ChaiTerminal {
 
     pub fn draw_in_terminal(
         self: &mut Self,
-        camera_frames: Receiver<CameraFrame>,
-        input_events: Receiver<Event>,
+        camera_frames: SyncReceiver<CameraFrame>,
+        input_events: SyncReceiver<Event>,
+        in_p2p_receiver: Receiver<Message>,
+        out_p2p_sender: Sender<Message>,
     ) -> Res<()> {
         let size = self
             .inner_terminal
@@ -82,7 +86,10 @@ impl ChaiTerminal {
                         text_area_content.last_mut().unwrap().pop();
                     }
                     KeyCode::Enter => {
-                        let response = handle_command(text_area_content.last().unwrap());
+                        let response = handle_command(
+                            text_area_content.last().unwrap(),
+                            out_p2p_sender.clone(),
+                        );
                         text_area_content.push(response);
                         text_area_content.push(String::from(""));
                     }

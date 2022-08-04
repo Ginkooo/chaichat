@@ -5,14 +5,15 @@ mod transport;
 use crate::p2p::behaviour::Behaviour;
 use crate::p2p::event::Event;
 use crate::types::Message;
-use async_std::{io, task};
+use async_std::channel::{Receiver, Sender};
+use async_std::io::timeout;
 use bincode;
-use crossbeam::channel::{Receiver, Sender};
 use dirs;
 use futures::executor::block_on;
 use futures::future::FutureExt;
 use futures::AsyncReadExt;
 use futures::{
+    join,
     prelude::{stream::StreamExt, *},
     select,
 };
@@ -31,6 +32,8 @@ use std::io::Read;
 use std::io::Write;
 use std::net::Ipv4Addr;
 use std::str::FromStr;
+use std::thread;
+use std::time::Duration;
 
 use crate::consts::RELAY_MULTIADDR;
 
@@ -62,8 +65,6 @@ impl P2p {
         File::create(&path).unwrap().write(&encoded).unwrap();
 
         let local_peer_id = PeerId::from(local_key.public());
-
-        dbg!(&local_peer_id);
 
         Self {
             relay_multiaddr: RELAY_MULTIADDR.parse().unwrap(),
@@ -137,7 +138,7 @@ impl P2p {
                 .unwrap();
         }
 
-        self.run_swarm_loop(&mut swarm, main_topic.clone());
+        self.run_swarm_loop(&mut swarm, main_topic);
 
         Ok(())
     }
@@ -175,17 +176,17 @@ impl P2p {
         });
     }
 
+    async fn print_dupsko() {
+        loop {
+            println!("dupsko");
+        }
+    }
+
     fn run_swarm_loop(&self, swarm: &mut Swarm<Behaviour>, topic: floodsub::Topic) {
-        let mut stdin = io::BufReader::new(io::stdin()).lines().fuse();
+        let mut out_receiver = self.out_receiver.clone();
         block_on(async {
             loop {
                 select!(
-                    line = stdin.select_next_some() => {
-                        let s = line.unwrap().to_string();
-                        let msg = Message::Text(s);
-                        let encoded_msg = bincode::serialize(&msg).unwrap();
-                        swarm.behaviour_mut().floodsub.publish(topic.clone(), encoded_msg);
-                    }
                     event = swarm.select_next_some() => match event {
                         SwarmEvent::NewListenAddr { address, .. } => {
                             info!("Listening on {:?}", address);
@@ -206,10 +207,9 @@ impl P2p {
                         }
                         SwarmEvent::Behaviour(Event::Floodsub(FloodsubEvent::Message(msg))) => {
                             let message = bincode::deserialize::<Message>(&msg.data).unwrap_or(Message::Empty);
-                            dbg!(message);
+                            self.in_sender.send(message).await.unwrap();
                         }
                         SwarmEvent::Behaviour(Event::Ping(event)) => {
-                        dbg!(event);
                         }
                         SwarmEvent::ConnectionEstablished {
                             peer_id, endpoint, ..
@@ -221,6 +221,13 @@ impl P2p {
                             info!("Outgoing connection error to {:?}: {:?}", peer_id, error);
                         }
                         _ => {}
+                    },
+                    message = out_receiver.next() => match message {
+                        None => {},
+                        Some(msg) => {
+                            let encoded = bincode::serialize(&msg).unwrap();
+                            swarm.behaviour_mut().floodsub.publish(topic.clone(), encoded);
+                        }
                     }
                 );
             }

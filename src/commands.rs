@@ -1,3 +1,6 @@
+use crate::types::Message;
+use async_std::channel::Sender;
+use futures::executor::block_on;
 use serde::{Deserialize, Serialize};
 
 use reqwest::blocking as reqwest;
@@ -19,9 +22,11 @@ struct Room {
     guests: Vec<Guest>,
 }
 
-pub fn handle_command(string: &String) -> String {
+pub fn handle_command(string: &String, out_sender: Sender<Message>) -> String {
     let client = reqwest::Client::new();
     if !string.starts_with("/") {
+        let msg = Message::Text(string.clone());
+        block_on(out_sender.send(msg)).unwrap();
         return string.clone();
     }
     let command = &string[1..];

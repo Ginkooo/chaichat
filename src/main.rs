@@ -9,8 +9,8 @@ mod types;
 mod utils;
 
 use crate::p2p::P2p;
+use async_std::channel;
 use camera::run_camera_thread;
-use crossbeam::channel;
 use crossbeam::scope;
 use env_logger;
 use input::start_input_event_thread;
@@ -23,18 +23,24 @@ fn main() -> Res<()> {
     let (out_p2p_sender, out_p2p_receiver) = channel::unbounded::<Message>();
     let (in_p2p_sender, in_p2p_receiver) = channel::unbounded::<Message>();
 
-    let p2p = P2p::new(in_p2p_sender, out_p2p_receiver);
-
-    p2p.start().unwrap();
-
     let mut term = ChaiTerminal::init()?;
 
     let receiver_camera = run_camera_thread().expect("Could not start camera");
     let input_event_receiver = start_input_event_thread();
     scope(|spawner| {
         spawner.spawn(|_| loop {
-            term.draw_in_terminal(receiver_camera.clone(), input_event_receiver.clone())
-                .unwrap();
+            term.draw_in_terminal(
+                receiver_camera.clone(),
+                input_event_receiver.clone(),
+                in_p2p_receiver.clone(),
+                out_p2p_sender.clone(),
+            )
+            .unwrap();
+        });
+        spawner.spawn(|_| {
+            let p2p = P2p::new(in_p2p_sender, out_p2p_receiver);
+
+            p2p.start().unwrap();
         });
     })
     .unwrap();
