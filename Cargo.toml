@@ -9,7 +9,6 @@ image = "*"
 dirs = "*"
 env_logger = "*"
 crossterm = "*"
-crossbeam = "*"
 serde = { version = "*", features = ["derive"] }
 bincode = "*"
 tui = { version = "*", default-features = false, features = ['crossterm'] }

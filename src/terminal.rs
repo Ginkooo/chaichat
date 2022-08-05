@@ -5,16 +5,22 @@ use crate::commands::handle_command;
 use crate::types::CameraImage;
 use crate::types::Message;
 use async_std::channel::{Receiver, Sender};
-use crossbeam::channel::Receiver as SyncReceiver;
+use async_std::stream::StreamExt;
 use crossterm::event::Event;
 use crossterm::event::KeyCode;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
+use futures::executor::block_on;
 use image::ImageBuffer;
+use std::mem;
 use std::time::Duration;
 use tui::layout::Rect;
 use tui::layout::{Constraint, Direction, Layout};
 use tui::style::Color;
+use tui::style::Style;
 use tui::symbols::Marker;
+use tui::text::Span;
+use tui::text::Spans;
+use tui::text::Text;
 use tui::widgets::canvas::{Canvas, Rectangle};
 use tui::widgets::Block;
 use tui::widgets::Borders;
@@ -23,13 +29,13 @@ use tui::{backend::CrosstermBackend, Terminal};
 
 use crate::types::Res;
 
-pub struct ChaiTerminal {
+pub struct ChaiTerminal<'a> {
     prev_camera_frame: Option<CameraFrame>,
     inner_terminal: Terminal<CrosstermBackend<Stdout>>,
-    text_area_content: Vec<String>,
+    text_area_content: Text<'a>,
 }
 
-impl ChaiTerminal {
+impl<'a> ChaiTerminal<'a> {
     fn prepare_terminal_for_drawing() -> Res<Terminal<CrosstermBackend<Stdout>>> {
         enable_raw_mode().unwrap();
         let backend = CrosstermBackend::new(stdout());
@@ -37,12 +43,12 @@ impl ChaiTerminal {
         terminal.clear().expect("failed to clear terminal screen");
         Ok(terminal)
     }
-    pub fn init() -> Res<ChaiTerminal> {
+    pub fn init<'b>() -> Res<ChaiTerminal<'b>> {
         let terminal = ChaiTerminal::prepare_terminal_for_drawing()?;
         Ok(ChaiTerminal {
             prev_camera_frame: None,
             inner_terminal: terminal,
-            text_area_content: vec![String::from("")],
+            text_area_content: Text::from("\n\n"),
         })
     }
 
@@ -52,8 +58,8 @@ impl ChaiTerminal {
 
     pub fn draw_in_terminal(
         self: &mut Self,
-        camera_frames: SyncReceiver<CameraFrame>,
-        input_events: SyncReceiver<Event>,
+        camera_frames: Receiver<CameraFrame>,
+        input_events: Receiver<Event>,
         in_p2p_receiver: Receiver<Message>,
         out_p2p_sender: Sender<Message>,
     ) -> Res<()> {
@@ -70,7 +76,8 @@ impl ChaiTerminal {
 
         let video_block = Block::default().borders(Borders::all()).title("video");
         let input_block = Block::default().borders(Borders::all()).title("input");
-        let input_paragraph = Paragraph::new(self.text_area_content.join("\n"));
+        let input_paragraph = Paragraph::new(self.text_area_content.clone())
+            .scroll(((self.text_area_content.lines.len() as u16 - 3).max(0), 0));
         let input_paragraph_rect = Rect {
             x: chunks[1].x + 1,
             y: chunks[1].y + 1,
@@ -78,51 +85,82 @@ impl ChaiTerminal {
             height: chunks[1].height - 1,
         };
 
-        let text_area_content = &mut self.text_area_content;
         match input_events.try_recv() {
             Ok(event) => match event {
                 Event::Key(key) => match key.code {
                     KeyCode::Char(chr) => {
-                        text_area_content.last_mut().unwrap().push(chr);
+                        let last_content = self.get_text_area_last_span_content();
+                        let span = Span::styled(
+                            last_content + &chr.to_string(),
+                            Style::default().fg(Color::Blue),
+                        );
+
+                        let _ = mem::replace(
+                            self.text_area_content.lines.last_mut().unwrap(),
+                            Spans::from(vec![span]),
+                        );
                     }
                     KeyCode::Backspace => {
-                        text_area_content.last_mut().unwrap().pop();
+                        let mut content = self.get_text_area_last_span_content();
+                        content.pop();
+                        let span = Span::styled(content, Style::default().fg(Color::Blue));
+
+                        let _ = mem::replace(
+                            self.text_area_content.lines.last_mut().unwrap(),
+                            Spans::from(vec![span]),
+                        );
                     }
                     KeyCode::Enter => {
-                        let response = handle_command(
-                            text_area_content.last().unwrap(),
+                        let response = match handle_command(
+                            &self.get_text_area_last_span_content(),
                             out_p2p_sender.clone(),
-                        );
-                        text_area_content.push(response);
-                        text_area_content.push(String::from(""));
+                        ) {
+                            Ok(response) => response,
+                            Err(_) => String::from("Error"),
+                        };
+
+                        let span = Span::styled(response.clone(), Style::default().fg(Color::Red));
+                        let new_input_line_span =
+                            Span::styled("", Style::default().fg(Color::Blue));
+
+                        if !response.is_empty() {
+                            self.text_area_content.lines.push(vec![span].into());
+                        }
+                        self.text_area_content
+                            .lines
+                            .push(vec![new_input_line_span].into());
                     }
                     KeyCode::Esc => {
                         panic!();
                     }
                     _ => {}
                 },
-                Event::Mouse(mouse) => {}
-                Event::Resize(x, y) => {}
+                Event::Mouse(_) => {}
+                Event::Resize(_, _) => {}
             },
             Err(_) => {}
         }
 
-        let camera_frame = camera_frames
-            .recv_timeout(Duration::from_millis(5))
-            .unwrap_or(CameraFrame::from_camera_image(CameraImage::new(600, 600)));
-        self.prev_camera_frame = Some(camera_frame);
-        let mut camera_frame = self
-            .prev_camera_frame
-            .clone()
-            .expect("Prev camera frame should exist by now");
+        let mut camera_frame = block_on(camera_frames.timeout(Duration::from_secs(1)).next())
+            .unwrap_or(Ok(CameraFrame::from_camera_image(CameraImage::new(
+                600, 600,
+            ))))
+            .unwrap();
 
-        camera_frame = camera_frame
-            .clone()
-            .resize((width as f64 * 0.3) as u16, (height as f64 * 0.3) as u16);
+        let new_width = (width as f64 * 0.2) as u16;
+        let new_height = (height as f64 * 0.2) as u16;
+        if new_height != camera_frame.camera_image.height() as u16
+            || new_width != camera_frame.camera_image.width() as u16
+        {
+            camera_frame =
+                camera_frame.resize((width as f64 * 0.3) as u16, (height as f64 * 0.3) as u16);
+        }
         self.prev_camera_frame = Some(camera_frame.clone());
 
         let cam_feedback_rect =
             Rect::new(1, 1, camera_frame.resolution.0, camera_frame.resolution.1);
+
+        let pixels = camera_frame.get_pixels();
 
         self.inner_terminal.draw(|frame| {
             let camera_feedback = Canvas::default()
@@ -130,7 +168,7 @@ impl ChaiTerminal {
                 .x_bounds([0., camera_frame.resolution.0 as f64])
                 .y_bounds([0., camera_frame.resolution.1 as f64])
                 .paint(|ctx| {
-                    for ((x, y), color) in camera_frame.clone().get_pixels().iter() {
+                    for ((x, y), color) in pixels.iter() {
                         let rect = &Rectangle {
                             x: (camera_frame.resolution.0 - x.to_owned()) as f64,
                             y: (camera_frame.resolution.1 - y) as f64,
@@ -149,5 +187,20 @@ impl ChaiTerminal {
         })?;
 
         Ok(())
+    }
+
+    fn get_text_area_last_span_content(&mut self) -> String {
+        self.text_area_content
+            .lines
+            .last_mut()
+            .unwrap()
+            .0
+            .iter()
+            .map(|span| span.content.to_string())
+            .reduce(|mut acc, it| {
+                acc.push_str(&it);
+                acc
+            })
+            .unwrap_or(String::new())
     }
 }

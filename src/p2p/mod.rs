@@ -6,12 +6,10 @@ use crate::p2p::behaviour::Behaviour;
 use crate::p2p::event::Event;
 use crate::types::Message;
 use async_std::channel::{Receiver, Sender};
-use async_std::io::timeout;
 use bincode;
 use dirs;
 use futures::executor::block_on;
 use futures::future::FutureExt;
-use futures::AsyncReadExt;
 use futures::{
     join,
     prelude::{stream::StreamExt, *},

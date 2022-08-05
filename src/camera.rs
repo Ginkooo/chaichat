@@ -1,4 +1,4 @@
-use crossbeam::channel::{unbounded, Receiver};
+use async_std::channel::{self, Receiver};
 use image::RgbImage;
 use nokhwa::{Camera, CameraFormat, FrameFormat};
 use std::thread;
@@ -7,7 +7,7 @@ use crate::camera_frame::CameraFrame;
 use crate::types::{CameraImage, Res};
 
 pub fn run_camera_thread() -> Res<Receiver<CameraFrame>> {
-    let (sender, receiver) = unbounded();
+    let (sender, receiver) = channel::unbounded();
     let sender_clone = sender.clone();
 
     thread::spawn(move || {
@@ -26,7 +26,7 @@ pub fn run_camera_thread() -> Res<Receiver<CameraFrame>> {
                 .expect("failed to create image from camera frame");
             let frame = CameraImage::from(frame);
             let frame = CameraFrame::from_camera_image(frame);
-            sender_clone.send(frame).ok();
+            sender_clone.send(frame);
         }
     });
 

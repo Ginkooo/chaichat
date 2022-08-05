@@ -3,6 +3,7 @@ use async_std::channel::Sender;
 use futures::executor::block_on;
 use serde::{Deserialize, Serialize};
 
+use crate::types::Res;
 use reqwest::blocking as reqwest;
 
 const ROOMS_ADDRESS: &str = "http://chaicorp.pl:8000";
@@ -22,12 +23,12 @@ struct Room {
     guests: Vec<Guest>,
 }
 
-pub fn handle_command(string: &String, out_sender: Sender<Message>) -> String {
+pub fn handle_command(string: &String, out_sender: Sender<Message>) -> Res<String> {
     let client = reqwest::Client::new();
     if !string.starts_with("/") {
         let msg = Message::Text(string.clone());
         block_on(out_sender.send(msg)).unwrap();
-        return string.clone();
+        return Ok(String::new());
     }
     let command = &string[1..];
     let command: Vec<&str> = command.split(" ").collect();
@@ -35,42 +36,36 @@ pub fn handle_command(string: &String, out_sender: Sender<Message>) -> String {
     let command = command[0];
 
     match command {
-        "list" => client
+        "list" => Ok(client
             .get(format!("{}/rooms", ROOMS_ADDRESS))
-            .send()
-            .unwrap()
-            .text()
-            .unwrap(),
+            .send()?
+            .text()?),
         "add" => {
             let room = Room {
                 id: None,
                 name: String::from(argumens[0]),
                 guests: vec![],
             };
-            client
+            Ok(client
                 .post(format!("{}/rooms", ROOMS_ADDRESS))
                 .json(&room)
-                .send()
-                .unwrap()
-                .text()
-                .unwrap()
+                .send()?
+                .text()?)
         }
         "join" => {
             let guest = Guest {
                 id: None,
-                name: String::from(argumens[1]),
+                name: argumens.get(1).ok_or("")?.to_string(),
                 multiaddr: String::from(""),
-                room_id: argumens[0].parse().unwrap(),
+                room_id: argumens.get(0).ok_or("")?.parse()?,
             };
 
-            client
+            Ok(client
                 .post(format!("{}/join", ROOMS_ADDRESS))
                 .json(&guest)
-                .send()
-                .unwrap()
-                .text()
-                .unwrap()
+                .send()?
+                .text()?)
         }
-        _ => String::new(),
+        _ => Ok(String::new()),
     }
 }
