@@ -10,7 +10,7 @@ use crossterm::event::Event;
 use crossterm::event::KeyCode;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use futures::executor::block_on;
-use image::ImageBuffer;
+
 use std::mem;
 use std::time::Duration;
 use tui::layout::Rect;
@@ -60,7 +60,7 @@ impl<'a> ChaiTerminal<'a> {
         self: &mut Self,
         camera_frames: Receiver<CameraFrame>,
         input_events: Receiver<Event>,
-        in_p2p_receiver: Receiver<Message>,
+        _in_p2p_receiver: Receiver<Message>,
         out_p2p_sender: Sender<Message>,
     ) -> Res<()> {
         let size = self

@@ -11,7 +11,6 @@ use dirs;
 use futures::executor::block_on;
 use futures::future::FutureExt;
 use futures::{
-    join,
     prelude::{stream::StreamExt, *},
     select,
 };
@@ -30,8 +29,8 @@ use std::io::Read;
 use std::io::Write;
 use std::net::Ipv4Addr;
 use std::str::FromStr;
-use std::thread;
-use std::time::Duration;
+
+
 
 use crate::consts::RELAY_MULTIADDR;
 
@@ -208,7 +207,7 @@ impl P2p {
                             dbg!(&message);
                             self.in_sender.send(message).await.unwrap();
                         }
-                        SwarmEvent::Behaviour(Event::Ping(event)) => {
+                        SwarmEvent::Behaviour(Event::Ping(_event)) => {
                         }
                         SwarmEvent::ConnectionEstablished {
                             peer_id, endpoint, ..
