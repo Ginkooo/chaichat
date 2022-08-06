@@ -6,21 +6,21 @@ use serde::{Deserialize, Serialize};
 use crate::types::Res;
 use reqwest::blocking as reqwest;
 
-const ROOMS_ADDRESS: &str = "http://chaicorp.pl:8000";
+pub const ROOMS_ADDRESS: &str = "http://chaicorp.pl:8000";
 
-#[derive(Serialize, Deserialize)]
-struct Guest {
-    id: Option<i32>,
-    name: String,
-    multiaddr: String,
-    room_id: i32,
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Guest {
+    pub id: Option<i32>,
+    pub name: String,
+    pub multiaddr: String,
+    pub room_id: i32,
 }
 
-#[derive(Serialize, Deserialize)]
-struct Room {
-    id: Option<i32>,
-    name: String,
-    guests: Vec<Guest>,
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Room {
+    pub id: Option<i32>,
+    pub name: String,
+    pub guests: Vec<Guest>,
 }
 
 pub fn handle_command(string: &String, out_sender: Sender<Message>) -> Res<String> {

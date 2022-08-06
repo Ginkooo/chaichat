@@ -11,6 +11,7 @@ use crossterm::event::KeyCode;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use futures::executor::block_on;
 
+use async_std::io;
 use std::mem;
 use std::time::Duration;
 use tui::layout::Rect;
@@ -58,9 +59,9 @@ impl<'a> ChaiTerminal<'a> {
 
     pub fn draw_in_terminal(
         self: &mut Self,
-        camera_frames: Receiver<CameraFrame>,
+        mut camera_frames: Receiver<CameraFrame>,
         input_events: Receiver<Event>,
-        _in_p2p_receiver: Receiver<Message>,
+        in_p2p_receiver: Receiver<Message>,
         out_p2p_sender: Sender<Message>,
     ) -> Res<()> {
         let size = self
@@ -76,6 +77,15 @@ impl<'a> ChaiTerminal<'a> {
 
         let video_block = Block::default().borders(Borders::all()).title("video");
         let input_block = Block::default().borders(Borders::all()).title("input");
+        match in_p2p_receiver.try_recv() {
+            Ok(Message::Text(msg)) => {
+                self.text_area_content
+                    .lines
+                    .push(vec![Span::styled(msg, Style::default().fg(Color::Yellow))].into());
+            }
+            Ok(_) => {}
+            Err(_) => (),
+        }
         let input_paragraph = Paragraph::new(self.text_area_content.clone())
             .scroll(((self.text_area_content.lines.len() as u16 - 3).max(0), 0));
         let input_paragraph_rect = Rect {
@@ -141,11 +151,13 @@ impl<'a> ChaiTerminal<'a> {
             Err(_) => {}
         }
 
-        let mut camera_frame = block_on(camera_frames.timeout(Duration::from_secs(1)).next())
-            .unwrap_or(Ok(CameraFrame::from_camera_image(CameraImage::new(
-                600, 600,
-            ))))
-            .unwrap();
+        let mut camera_frame = block_on(io::timeout(Duration::from_secs(1), async {
+            camera_frames
+                .next()
+                .await
+                .ok_or(std::io::Error::last_os_error())
+        }))
+        .unwrap_or(CameraFrame::from_camera_image(CameraImage::new(600, 600)));
 
         let new_width = (width as f64 * 0.2) as u16;
         let new_height = (height as f64 * 0.2) as u16;

@@ -1,4 +1,5 @@
 use async_std::channel::{self, Receiver};
+use futures::executor::block_on;
 use image::RgbImage;
 use nokhwa::{Camera, CameraFormat, FrameFormat};
 use std::thread;
@@ -26,7 +27,7 @@ pub fn run_camera_thread() -> Res<Receiver<CameraFrame>> {
                 .expect("failed to create image from camera frame");
             let frame = CameraImage::from(frame);
             let frame = CameraFrame::from_camera_image(frame);
-            sender_clone.send(frame);
+            block_on(sender_clone.send(frame)).unwrap();
         }
     });
 

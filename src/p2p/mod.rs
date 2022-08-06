@@ -2,6 +2,9 @@ mod behaviour;
 mod event;
 mod transport;
 
+use crate::commands::Guest;
+use crate::commands::Room;
+use crate::commands::ROOMS_ADDRESS;
 use crate::p2p::behaviour::Behaviour;
 use crate::p2p::event::Event;
 use crate::types::Message;
@@ -22,6 +25,7 @@ use libp2p::swarm::{SwarmBuilder, SwarmEvent};
 use libp2p::Swarm;
 use libp2p::{identity, PeerId};
 use log::info;
+use reqwest::blocking as reqwest;
 use std::convert::TryInto;
 use std::error::Error;
 use std::fs::File;
@@ -30,13 +34,11 @@ use std::io::Write;
 use std::net::Ipv4Addr;
 use std::str::FromStr;
 
-
-
 use crate::consts::RELAY_MULTIADDR;
 
 pub struct P2p {
     relay_multiaddr: Multiaddr,
-    peer_id: PeerId,
+    pub peer_id: PeerId,
     key: identity::Keypair,
     in_sender: Sender<Message>,
     out_receiver: Receiver<Message>,
@@ -73,10 +75,33 @@ impl P2p {
     }
 
     pub fn start(&self) -> Result<(), Box<dyn Error>> {
-        let peer_ids_to_dial = [
-            PeerId::from_str("12D3KooWRmxptk9mVYWu69nrDjJtSdRwsqCFLpGiWapJZTZVCuMr").unwrap(),
-            PeerId::from_str("12D3KooWJiXZEyXJDoh1FDuCuep2xdRDcm26asX743a9Yv1R3kQU").unwrap(),
-        ];
+        let client = reqwest::Client::new();
+        let rooms: Vec<Room> = client
+            .get(format!("{}/rooms", ROOMS_ADDRESS))
+            .send()?
+            .json()?;
+
+        let default_room = rooms.iter().find(|&it| it.id == Some(1)).unwrap();
+
+        let peer_ids_to_dial = default_room
+            .guests
+            .iter()
+            .map(|guest| PeerId::from_str(&guest.multiaddr).ok())
+            .filter(|it| it.is_some())
+            .map(|it| it.unwrap())
+            .collect::<Vec<PeerId>>();
+
+        let guest = Guest {
+            id: None,
+            name: self.peer_id.to_string()[0..5].to_string(),
+            multiaddr: self.peer_id.to_string(),
+            room_id: default_room.id.unwrap(),
+        };
+
+        client
+            .post(format!("{}/join", ROOMS_ADDRESS))
+            .json(&guest)
+            .send()?;
 
         let (transport, client) =
             transport::create_transport(self.key.clone(), self.peer_id.clone());

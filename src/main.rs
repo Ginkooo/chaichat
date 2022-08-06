@@ -27,7 +27,7 @@ fn main() -> Res<()> {
 
     let receiver_camera = run_camera_thread().expect("Could not start camera");
     let input_event_receiver = start_input_event_thread();
-    thread::spawn(move || loop {
+    let t1 = thread::spawn(move || loop {
         term.draw_in_terminal(
             receiver_camera.clone(),
             input_event_receiver.clone(),
@@ -36,11 +36,14 @@ fn main() -> Res<()> {
         )
         .unwrap();
     });
-    thread::spawn(|| {
+    let t2 = thread::spawn(|| {
         let p2p = P2p::new(in_p2p_sender, out_p2p_receiver);
 
         p2p.start().unwrap();
     });
+
+    t1.join().unwrap();
+    t2.join().unwrap();
 
     Ok(())
 }
