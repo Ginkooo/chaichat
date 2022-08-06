@@ -206,6 +206,7 @@ impl P2p {
 
     fn run_swarm_loop(&self, swarm: &mut Swarm<Behaviour>, topic: floodsub::Topic) {
         let mut out_receiver = self.out_receiver.clone();
+        let in_sender = self.in_sender.clone();
         block_on(async {
             loop {
                 select!(
@@ -237,7 +238,7 @@ impl P2p {
                         SwarmEvent::ConnectionEstablished {
                             peer_id, endpoint, ..
                         } => {
-                            info!("Established connection to {:?} via {:?}", peer_id, endpoint);
+                            in_sender.send(Message::Text(format!("{} connected!", peer_id))).await.unwrap();
                             swarm.behaviour_mut().floodsub.add_node_to_partial_view(peer_id);
                         }
                         SwarmEvent::OutgoingConnectionError { peer_id, error } => {
