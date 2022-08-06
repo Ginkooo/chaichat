@@ -17,6 +17,7 @@ use futures::{
     prelude::{stream::StreamExt, *},
     select,
 };
+use itertools::Itertools;
 use libp2p::core::multiaddr::{Multiaddr, Protocol};
 use libp2p::floodsub::{self, FloodsubEvent};
 use libp2p::identify::{IdentifyEvent, IdentifyInfo};
@@ -26,6 +27,7 @@ use libp2p::Swarm;
 use libp2p::{identity, PeerId};
 use log::info;
 use reqwest::blocking as reqwest;
+use std::collections::HashMap;
 use std::convert::TryInto;
 use std::error::Error;
 use std::fs::File;
@@ -89,6 +91,7 @@ impl P2p {
             .map(|guest| PeerId::from_str(&guest.multiaddr).ok())
             .filter(|it| it.is_some())
             .map(|it| it.unwrap())
+            .unique()
             .collect::<Vec<PeerId>>();
 
         let guest = Guest {
@@ -207,6 +210,7 @@ impl P2p {
     fn run_swarm_loop(&self, swarm: &mut Swarm<Behaviour>, topic: floodsub::Topic) {
         let mut out_receiver = self.out_receiver.clone();
         let in_sender = self.in_sender.clone();
+        let mut reconnect_counter = HashMap::new();
         block_on(async {
             loop {
                 select!(
@@ -244,6 +248,20 @@ impl P2p {
                             in_sender.send(Message::Text(format!("{} disconnected! ({})", match peer_id {
                                 Some(peer_id) => {
                                     swarm.behaviour_mut().floodsub.remove_node_from_partial_view(&peer_id);
+                                    *reconnect_counter.entry(peer_id.clone()).or_insert(0) += 1;
+                                    match reconnect_counter[&peer_id.clone()] {
+                                        0..=3 => {
+                                            swarm
+                                                .dial(
+                                                    self.relay_multiaddr
+                                                        .clone()
+                                                        .with(Protocol::P2pCircuit)
+                                                        .with(Protocol::P2p(peer_id.into())),
+                                                )
+                                                .unwrap();
+                                        }
+                                        _ => return peer_id.to_string()
+                                    }
                                     peer_id.to_string()
                                 }
                                 None => "somebody".to_string()

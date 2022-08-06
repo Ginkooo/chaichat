@@ -3371,6 +3371,7 @@ dependencies = [
  "futures-timer",
  "image 0.24.3",
  "instant",
+ "itertools",
  "libp2p",
  "libp2p-core",
  "libp2p-swarm",

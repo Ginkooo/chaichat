@@ -6,6 +6,7 @@ edition = "2018"
 
 [dependencies]
 image = "*"
+itertools = "*"
 dirs = "*"
 env_logger = "*"
 crossterm = "*"
