@@ -82,6 +82,9 @@ impl<'a> ChaiTerminal<'a> {
                 self.text_area_content
                     .lines
                     .push(vec![Span::styled(msg, Style::default().fg(Color::Yellow))].into());
+                self.text_area_content
+                    .lines
+                    .push(vec![Span::raw("")].into());
             }
             Ok(_) => {}
             Err(_) => (),
