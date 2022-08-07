@@ -205,7 +205,6 @@ impl P2p {
     fn run_swarm_loop(&self, swarm: &mut Swarm<Behaviour>, topic: floodsub::Topic) {
         let mut out_receiver = self.out_receiver.clone();
         let in_sender = self.in_sender.clone();
-        let mut reconnect_counter = HashMap::new();
         block_on(async {
             loop {
                 select!(
@@ -243,21 +242,6 @@ impl P2p {
                             in_sender.send(Message::Text(format!("{} disconnected! ({})", match peer_id {
                                 Some(peer_id) => {
                                     swarm.behaviour_mut().floodsub.remove_node_from_partial_view(&peer_id);
-                                    _ = *reconnect_counter.entry(peer_id.to_string()).or_insert(0);
-                                    match reconnect_counter[&peer_id.to_string()] {
-                                        0..=3 => {
-                                            swarm
-                                                .dial(
-                                                    self.relay_multiaddr
-                                                        .clone()
-                                                        .with(Protocol::P2pCircuit)
-                                                        .with(Protocol::P2p(peer_id.into())),
-                                                )
-                                                .unwrap();
-                                            reconnect_counter.get_mut(&peer_id.to_string()).map(|v| *v+1);
-                                        }
-                                        _ => return peer_id.to_string()
-                                    }
                                     peer_id.to_string()
                                 }
                                 None => "somebody".to_string()
