@@ -50,7 +50,7 @@ impl P2p {
     pub fn new(in_sender: Sender<Message>, out_receiver: Receiver<Message>) -> Self {
         let mut local_key = identity::Keypair::generate_ed25519();
         let mut path = dirs::config_dir().unwrap();
-        path.push("chaichar_private_key");
+        path.push("chaichat_private_key");
 
         match File::open(&path) {
             Ok(mut file) => {
@@ -83,7 +83,7 @@ impl P2p {
             .send()?
             .json()?;
 
-        let default_room = rooms.iter().find(|&it| it.id == Some(1)).unwrap();
+        let default_room = rooms.iter().find(|&it| it.name == "main").unwrap();
 
         let peer_ids_to_dial = default_room
             .guests
@@ -104,7 +104,8 @@ impl P2p {
         client
             .post(format!("{}/join", ROOMS_ADDRESS))
             .json(&guest)
-            .send()?;
+            .send()
+            .ok();
 
         let (transport, client) =
             transport::create_transport(self.key.clone(), self.peer_id.clone());
@@ -201,12 +202,6 @@ impl P2p {
         });
     }
 
-    async fn print_dupsko() {
-        loop {
-            println!("dupsko");
-        }
-    }
-
     fn run_swarm_loop(&self, swarm: &mut Swarm<Behaviour>, topic: floodsub::Topic) {
         let mut out_receiver = self.out_receiver.clone();
         let in_sender = self.in_sender.clone();
@@ -248,8 +243,8 @@ impl P2p {
                             in_sender.send(Message::Text(format!("{} disconnected! ({})", match peer_id {
                                 Some(peer_id) => {
                                     swarm.behaviour_mut().floodsub.remove_node_from_partial_view(&peer_id);
-                                    *reconnect_counter.entry(peer_id.clone()).or_insert(0) += 1;
-                                    match reconnect_counter[&peer_id.clone()] {
+                                    _ = *reconnect_counter.entry(peer_id.to_string()).or_insert(0);
+                                    match reconnect_counter[&peer_id.to_string()] {
                                         0..=3 => {
                                             swarm
                                                 .dial(
@@ -259,6 +254,7 @@ impl P2p {
                                                         .with(Protocol::P2p(peer_id.into())),
                                                 )
                                                 .unwrap();
+                                            reconnect_counter.get_mut(&peer_id.to_string()).map(|v| *v+1);
                                         }
                                         _ => return peer_id.to_string()
                                     }
