@@ -11,6 +11,7 @@ use crossterm::event::KeyCode;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use futures::executor::block_on;
 
+use crate::consts::DEFAULT_CAMERA_SIZE;
 use async_std::io;
 use std::mem;
 use std::time::Duration;
@@ -77,7 +78,10 @@ impl<'a> ChaiTerminal<'a> {
 
         let video_block = Block::default().borders(Borders::all()).title("video");
         let input_block = Block::default().borders(Borders::all()).title("input");
-        let mut in_camera_frame = CameraFrame::from_camera_image(CameraImage::new(640, 480));
+        let mut in_camera_frame = CameraFrame::from_camera_image(CameraImage::new(
+            DEFAULT_CAMERA_SIZE[0] as u32,
+            DEFAULT_CAMERA_SIZE[1] as u32,
+        ));
         match in_p2p_receiver.try_recv() {
             Ok(Message::Text(msg)) => {
                 self.text_area_content
@@ -88,8 +92,14 @@ impl<'a> ChaiTerminal<'a> {
                     .push(vec![Span::raw("")].into());
             }
             Ok(Message::RawCameraImage(raw)) => {
-                in_camera_frame =
-                    CameraFrame::from_camera_image(CameraImage::from_raw(640, 480, raw).unwrap());
+                in_camera_frame = CameraFrame::from_camera_image(
+                    CameraImage::from_raw(
+                        DEFAULT_CAMERA_SIZE[0] as u32,
+                        DEFAULT_CAMERA_SIZE[1] as u32,
+                        raw,
+                    )
+                    .unwrap(),
+                );
             }
             Ok(_) => {}
             Err(_) => (),

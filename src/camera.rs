@@ -5,6 +5,7 @@ use nokhwa::{Camera, CameraFormat, FrameFormat};
 use std::thread;
 
 use crate::camera_frame::CameraFrame;
+use crate::consts::DEFAULT_CAMERA_SIZE;
 use crate::types::{CameraImage, Res};
 
 pub fn run_camera_thread() -> Res<Receiver<CameraFrame>> {
@@ -14,7 +15,12 @@ pub fn run_camera_thread() -> Res<Receiver<CameraFrame>> {
     thread::spawn(move || {
         let cam = Camera::new(
             0,
-            Some(CameraFormat::new_from(640, 480, FrameFormat::MJPEG, 30)),
+            Some(CameraFormat::new_from(
+                DEFAULT_CAMERA_SIZE[0] as u32,
+                DEFAULT_CAMERA_SIZE[1] as u32,
+                FrameFormat::MJPEG,
+                30,
+            )),
         );
         if cam.as_ref().is_err() {
             return;
