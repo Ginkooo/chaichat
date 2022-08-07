@@ -77,6 +77,7 @@ impl<'a> ChaiTerminal<'a> {
 
         let video_block = Block::default().borders(Borders::all()).title("video");
         let input_block = Block::default().borders(Borders::all()).title("input");
+        let mut in_camera_frame = CameraFrame::from_camera_image(CameraImage::new(640, 480));
         match in_p2p_receiver.try_recv() {
             Ok(Message::Text(msg)) => {
                 self.text_area_content
@@ -85,6 +86,10 @@ impl<'a> ChaiTerminal<'a> {
                 self.text_area_content
                     .lines
                     .push(vec![Span::raw("")].into());
+            }
+            Ok(Message::RawCameraImage(raw)) => {
+                in_camera_frame =
+                    CameraFrame::from_camera_image(CameraImage::from_raw(640, 480, raw).unwrap());
             }
             Ok(_) => {}
             Err(_) => (),
@@ -160,7 +165,9 @@ impl<'a> ChaiTerminal<'a> {
                 .await
                 .ok_or(std::io::Error::last_os_error())
         }))
-        .unwrap_or(CameraFrame::from_camera_image(CameraImage::new(600, 600)));
+        .unwrap_or(CameraFrame::from_camera_image(CameraImage::new(640, 480)));
+        let serializable_camera = camera_frame.camera_image.clone().into_raw();
+        block_on(out_p2p_sender.send(Message::RawCameraImage(serializable_camera))).unwrap();
 
         let new_width = (width as f64 * 0.2) as u16;
         let new_height = (height as f64 * 0.2) as u16;
@@ -176,8 +183,26 @@ impl<'a> ChaiTerminal<'a> {
             Rect::new(1, 1, camera_frame.resolution.0, camera_frame.resolution.1);
 
         let pixels = camera_frame.get_pixels();
+        let in_camera_pixels = in_camera_frame.get_pixels();
 
         self.inner_terminal.draw(|frame| {
+            let received_camera = Canvas::default()
+                .marker(Marker::Braille)
+                .x_bounds([0., in_camera_frame.resolution.0 as f64])
+                .y_bounds([0., in_camera_frame.resolution.1 as f64])
+                .paint(|ctx| {
+                    for ((x, y), color) in in_camera_pixels.iter() {
+                        let rect = &Rectangle {
+                            x: (in_camera_frame.resolution.0 - x.to_owned()) as f64,
+                            y: (in_camera_frame.resolution.1 - y) as f64,
+                            width: 1.,
+                            height: 1.,
+                            color: Color::Rgb(color[0], color[1], color[2]),
+                        };
+                        ctx.draw(rect);
+                    }
+                });
+
             let camera_feedback = Canvas::default()
                 .marker(Marker::Braille)
                 .x_bounds([0., camera_frame.resolution.0 as f64])
@@ -195,7 +220,7 @@ impl<'a> ChaiTerminal<'a> {
                     }
                 });
 
-            frame.render_widget(video_block, chunks[0]);
+            frame.render_widget(received_camera, chunks[0]);
             frame.render_widget(input_block, chunks[1]);
             frame.render_widget(input_paragraph, input_paragraph_rect);
             frame.render_widget(camera_feedback, cam_feedback_rect);
