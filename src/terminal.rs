@@ -220,10 +220,10 @@ impl<'a> ChaiTerminal<'a> {
                     }
                 });
 
-            frame.render_widget(received_camera, chunks[0]);
-            frame.render_widget(input_block, chunks[1]);
-            frame.render_widget(input_paragraph, input_paragraph_rect);
-            frame.render_widget(camera_feedback, cam_feedback_rect);
+            // frame.render_widget(received_camera, chunks[0]);
+            // frame.render_widget(input_block, chunks[1]);
+            // frame.render_widget(input_paragraph, input_paragraph_rect);
+            // frame.render_widget(camera_feedback, cam_feedback_rect);
         })?;
 
         Ok(())
