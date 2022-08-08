@@ -194,12 +194,7 @@ impl<'a> ChaiTerminal<'a> {
         }))
         .unwrap_or(CameraFrame::from_camera_image(CameraImage::new(640, 480)));
         let serializable_camera = camera_frame.camera_image.clone().into_raw();
-        let s: String = rand::thread_rng()
-            .sample_iter(&Alphanumeric)
-            .take(7)
-            .map(char::from)
-            .collect();
-        block_on(out_p2p_sender.send(Message::Text(s))).unwrap();
+        block_on(out_p2p_sender.send(Message::RawCameraImage(serializable_camera))).unwrap();
 
         let new_width = (width as f64 * 0.2) as u16;
         let new_height = (height as f64 * 0.2) as u16;

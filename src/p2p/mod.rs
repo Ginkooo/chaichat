@@ -25,7 +25,6 @@ use libp2p::relay::v2::client;
 use libp2p::swarm::{SwarmBuilder, SwarmEvent};
 use libp2p::Swarm;
 use libp2p::{identity, PeerId};
-use log::debug;
 use log::info;
 use reqwest::blocking as reqwest;
 use std::collections::HashMap;
@@ -229,14 +228,7 @@ impl P2p {
                         }
                         SwarmEvent::Behaviour(Event::Floodsub(FloodsubEvent::Message(msg))) => {
                             let message = bincode::deserialize::<Message>(&msg.data).unwrap_or(Message::Empty);
-                            match message {
-                                Message::Text(ref text) => {
-                                    debug!("??? Received: {}", text);
-                                }
-                                _ => {}
-                            }
                             self.in_sender.send(message).await.unwrap();
-                            debug!("???? Sent recieved message to channel");
                         }
                         SwarmEvent::Behaviour(Event::Ping(_event)) => {
                         }
@@ -260,15 +252,8 @@ impl P2p {
                     message = out_receiver.next() => match message {
                         None => {},
                         Some(msg) => {
-                            match msg {
-                                Message::Text(ref text) => {
-                                    debug!("??? Sending message {}", text);
-                                }
-                                _ => {}
-                            }
                             let encoded = bincode::serialize(&msg).unwrap();
                             swarm.behaviour_mut().floodsub.publish(topic.clone(), encoded);
-                            debug!("??? Last message published to topic");
                         }
                     }
                 );
