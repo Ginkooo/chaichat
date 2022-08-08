@@ -20,7 +20,7 @@ jobs:
       - name: Build
         run: cargo build --release --target x86_64-pc-windows-gnu
 
-      - name: Upload artifact
+      - uses: actions/upload-artifact@v3
         with:
           name: chaichat
           path: target/x86_64-pc-windows-gnu/release/chaichat.exe
