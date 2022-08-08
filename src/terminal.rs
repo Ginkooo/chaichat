@@ -67,6 +67,20 @@ impl<'a> ChaiTerminal<'a> {
         in_p2p_receiver: Receiver<Message>,
         out_p2p_sender: Sender<Message>,
     ) -> Res<()> {
+        if self.text_area_content.lines.len() > 50 {
+            let dupa: Vec<Spans> = self
+                .text_area_content
+                .clone()
+                .lines
+                .into_iter()
+                .rev()
+                .take(10)
+                .collect();
+            self.text_area_content = Text::from("\n\n");
+            for spans in dupa {
+                self.text_area_content.lines.push(spans);
+            }
+        }
         let size = self
             .inner_terminal
             .size()
