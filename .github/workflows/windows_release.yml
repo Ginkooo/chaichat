@@ -16,9 +16,10 @@ jobs:
 
     steps:
       - name: Install everything
-      - run: | apt update
-               apt install mingw-w64 build-essential rust
-               rustup target add x86_64-pc-windows-gnu
+      - run: |
+         apt update
+         apt install mingw-w64 build-essential rust
+         rustup target add x86_64-pc-windows-gnu
 
       - uses: actions/checkout@v3
       - name: Build
