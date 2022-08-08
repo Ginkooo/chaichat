@@ -3380,6 +3380,7 @@ dependencies = [
  "nokhwa",
  "prost",
  "prost-codec",
+ "rand 0.7.3",
  "reqwest",
  "serde",
  "thiserror",

@@ -7,6 +7,8 @@ use crate::types::Message;
 use async_std::channel::{Receiver, Sender};
 use async_std::stream::StreamExt;
 use crossterm::event::Event;
+use rand::{distributions::Alphanumeric, Rng};
+
 use crossterm::event::KeyCode;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use futures::executor::block_on;
@@ -105,7 +107,7 @@ impl<'a> ChaiTerminal<'a> {
             Err(_) => (),
         }
         let input_paragraph = Paragraph::new(self.text_area_content.clone())
-            .scroll(((self.text_area_content.lines.len() as u16 - 3).max(0), 0));
+            .scroll(((self.text_area_content.lines.len() as u16 - 4).max(0), 0));
         let input_paragraph_rect = Rect {
             x: chunks[1].x + 1,
             y: chunks[1].y + 1,
@@ -177,7 +179,12 @@ impl<'a> ChaiTerminal<'a> {
         }))
         .unwrap_or(CameraFrame::from_camera_image(CameraImage::new(640, 480)));
         let serializable_camera = camera_frame.camera_image.clone().into_raw();
-        // block_on(out_p2p_sender.send(Message::Text("a".to_string()))).unwrap();
+        let s: String = rand::thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(7)
+            .map(char::from)
+            .collect();
+        block_on(out_p2p_sender.send(Message::Text(s))).unwrap();
 
         let new_width = (width as f64 * 0.2) as u16;
         let new_height = (height as f64 * 0.2) as u16;
