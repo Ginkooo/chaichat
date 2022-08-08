@@ -10,7 +10,7 @@ Works on Linux, Mac and Windows
 
 # Features:
 
-- [x] Default foor for all
+- [x] Default room for all
 - [x] Text chatting
 - [ ] Video
 - [ ] Multiple rooms
