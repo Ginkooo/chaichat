@@ -4,6 +4,8 @@
 
 This is a p2p video chat. For now, it requires a dedicated public server, serving as a relay (for p2p connection upgrade), and a service providing a user list, to know whom to connect to.
 
+Works on Linux, Mac and Windows
+
 # Features:
 
 - [x] Text chatting

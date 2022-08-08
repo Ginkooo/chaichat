@@ -36,4 +36,4 @@ const_format = "*"
 
 [dependencies.nokhwa]
 version = "*"
-features = ["input-msmf", "input-v4l"]
+features = ["input-msmf", "input-v4l", "input-avfoundation"]
