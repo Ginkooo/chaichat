@@ -1,8 +1,8 @@
 [package]
-name = "terminal-screen-share"
-version = "0.1.0"
+name = "chaichat"
+version = "0.0.1"
 authors = ["Piotr Czajka <czajka@protonmail.com>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 image = "*"

@@ -1,0 +1,30 @@
+name: Windows release
+
+on:
+  push:
+    branches: [ "main" ]
+    pull_request:
+      branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: rust
+
+    steps:
+      - name: Install everything
+        run: apt update
+        run: apt install mingw-w64 build-essential rust
+        run: rustup target add x86_64-pc-windows-gnu
+      - uses: actions/checkout@v3
+      - name: Build
+        run: cargo build --release --target x86_64-pc-windows-gnu
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: chaichat
+          path: target/x86_64-pc-windows-gnu/release/chaichat.exe
+
