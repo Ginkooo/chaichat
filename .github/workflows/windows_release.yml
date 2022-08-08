@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Install everything
-        run: apt update && apt install mingw-w64 build-essential cmake && rustup target add x86_64-pc-windows-gnu
+        run: apt update && apt install mingw-w64 build-essential cmake -y && rustup target add x86_64-pc-windows-gnu
 
       - name: Build
         run: cargo build --release --target x86_64-pc-windows-gnu
