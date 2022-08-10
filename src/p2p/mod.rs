@@ -218,10 +218,11 @@ impl P2p {
                             info!("Relay accepted our reservation request.");
                         }
                         SwarmEvent::Behaviour(Event::Relay(event)) => {
+                            swarm.behaviour_mut().floodsub.publish(topic.clone(), "direct connection established");
                             info!("{:?}", event)
                         }
                         SwarmEvent::Behaviour(Event::Dcutr(event)) => {
-                            info!("{:?}", event)
+                            info!("dcutr: {:?}", event)
                         }
                         SwarmEvent::Behaviour(Event::Identify(event)) => {
                             info!("{:?}", event)
@@ -241,7 +242,7 @@ impl P2p {
                         SwarmEvent::OutgoingConnectionError { peer_id, error } => {
                             in_sender.send(Message::Text(format!("{} disconnected! ({})", match peer_id {
                                 Some(peer_id) => {
-                                    swarm.behaviour_mut().floodsub.remove_node_from_partial_view(&peer_id);
+                                    // swarm.behaviour_mut().floodsub.remove_node_from_partial_view(&peer_id);
                                     peer_id.to_string()
                                 }
                                 None => "somebody".to_string()
