@@ -165,9 +165,9 @@ impl P2p {
         )
         .unwrap();
 
-        // swarm
-        //     .listen_on(self.relay_multiaddr.clone().with(Protocol::P2pCircuit))
-        //     .unwrap();
+        swarm
+            .listen_on(self.relay_multiaddr.clone().with(Protocol::P2pCircuit))
+            .unwrap();
 
         for peer_id in peer_ids_to_dial {
             swarm
@@ -237,6 +237,7 @@ impl P2p {
                         SwarmEvent::Behaviour(Event::Relay(
                             client::Event::ReservationReqAccepted { .. },
                         )) => {
+                            in_sender.send(Message::Text("Relay accepted out reservation request".to_string())).await.unwrap();
                             info!("Relay accepted our reservation request.");
                         }
                         SwarmEvent::Behaviour(Event::Relay(event)) => {
@@ -252,7 +253,7 @@ impl P2p {
                         }
                         SwarmEvent::Behaviour(Event::Floodsub(FloodsubEvent::Message(msg))) => {
                             let message = bincode::deserialize::<Message>(&msg.data).unwrap_or(Message::Empty);
-                            self.in_sender.send(message).await.unwrap();
+                            in_sender.send(message).await.unwrap();
                         }
                         SwarmEvent::Behaviour(Event::Ping(_event)) => {
                         }
