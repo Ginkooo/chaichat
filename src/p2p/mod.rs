@@ -113,7 +113,7 @@ impl P2p {
             .map(|guest| PeerId::from_str(&guest.multiaddr).ok())
             .filter(|it| it.is_some())
             .map(|it| it.unwrap())
-            .unique()
+            .unique().filter(|&peer_id| peer_id != self.peer_id)
             .collect::<Vec<PeerId>>();
 
         let guest = Guest {
