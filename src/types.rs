@@ -9,8 +9,15 @@ pub type Pixels = Vec<((u16, u16), [u8; 3])>;
 pub type CameraImage = ImageBuffer<Rgb<u8>, Vec<u8>>;
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct UserMessage {
+    pub username: Option<String>,
+    pub text: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub enum Message {
     Empty,
     RawCameraImage(Vec<u8>),
     Text(String),
+    UserMessage(UserMessage),
 }

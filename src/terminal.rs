@@ -107,6 +107,22 @@ impl<'a> ChaiTerminal<'a> {
                     .lines
                     .push(vec![Span::raw("")].into());
             }
+            Ok(Message::UserMessage(msg)) => {
+                self.text_area_content.lines.push(
+                    vec![Span::styled(
+                        format!(
+                            "{}: {}",
+                            msg.username.unwrap_or("anonymous".to_string()),
+                            msg.text
+                        ),
+                        Style::default().fg(Color::Yellow),
+                    )]
+                    .into(),
+                );
+                self.text_area_content
+                    .lines
+                    .push(vec![Span::raw("")].into());
+            }
             Ok(Message::RawCameraImage(raw)) => {
                 in_camera_frame = CameraFrame::from_camera_image(
                     CameraImage::from_raw(

@@ -44,6 +44,7 @@ pub struct P2p {
     key: identity::Keypair,
     in_sender: Sender<Message>,
     out_receiver: Receiver<Message>,
+    username: String,
 }
 
 impl P2p {
@@ -80,6 +81,7 @@ impl P2p {
             key: local_key,
             in_sender,
             out_receiver,
+            username: local_peer_id.to_string().chars().rev().take(5).collect(),
         }
     }
 
@@ -156,6 +158,13 @@ impl P2p {
 
         self.exchange_public_addresses_with_relay(&mut swarm);
 
+        block_on(
+            self.in_sender
+                .clone()
+                .send(Message::Text("Exchanged addresses with relay".to_string())),
+        )
+        .unwrap();
+
         // swarm
         //     .listen_on(self.relay_multiaddr.clone().with(Protocol::P2pCircuit))
         //     .unwrap();
@@ -169,6 +178,12 @@ impl P2p {
                         .with(Protocol::P2p(peer_id.into())),
                 )
                 .unwrap();
+            block_on(
+                self.in_sender
+                    .clone()
+                    .send(Message::Text(format!("Dialing {}", peer_id.to_string()))),
+            )
+            .unwrap();
         }
 
         self.run_swarm_loop(&mut swarm, main_topic);
@@ -225,7 +240,7 @@ impl P2p {
                             info!("Relay accepted our reservation request.");
                         }
                         SwarmEvent::Behaviour(Event::Relay(event)) => {
-                            swarm.behaviour_mut().floodsub.publish(topic.clone(), "direct connection established");
+                            in_sender.send(Message::Text(format!("{:?}", event))).await.unwrap();;
                             info!("{:?}", event)
                         }
                         SwarmEvent::Behaviour(Event::Dcutr(event)) => {
