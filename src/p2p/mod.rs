@@ -165,26 +165,26 @@ impl P2p {
         )
         .unwrap();
 
-        // swarm
-        //     .listen_on(self.relay_multiaddr.clone().with(Protocol::P2pCircuit))
-        //     .unwrap();
-
-        for peer_id in peer_ids_to_dial {
-            swarm
-                .dial(
-                    self.relay_multiaddr
-                        .clone()
-                        .with(Protocol::P2pCircuit)
-                        .with(Protocol::P2p(peer_id.into())),
-                )
-                .unwrap();
-            block_on(
-                self.in_sender
-                    .clone()
-                    .send(Message::Text(format!("Dialing {}", peer_id.to_string()))),
-            )
+        swarm
+            .listen_on(self.relay_multiaddr.clone().with(Protocol::P2pCircuit))
             .unwrap();
-        }
+
+        // for peer_id in peer_ids_to_dial {
+        //     swarm
+        //         .dial(
+        //             self.relay_multiaddr
+        //                 .clone()
+        //                 .with(Protocol::P2pCircuit)
+        //                 .with(Protocol::P2p(peer_id.into())),
+        //         )
+        //         .unwrap();
+        //     block_on(
+        //         self.in_sender
+        //             .clone()
+        //             .send(Message::Text(format!("Dialing {}", peer_id.to_string()))),
+        //     )
+        //     .unwrap();
+        // }
 
         self.run_swarm_loop(&mut swarm, main_topic);
 
