@@ -100,13 +100,12 @@ impl<'a> ChaiTerminal<'a> {
         ));
         match in_p2p_receiver.try_recv() {
             Ok(Message::Text(msg)) => {
-                println!("{}", msg);
-                // self.text_area_content
-                //     .lines
-                //     .push(vec![Span::styled(msg, Style::default().fg(Color::Yellow))].into());
-                // self.text_area_content
-                //     .lines
-                //     .push(vec![Span::raw("")].into());
+                self.text_area_content
+                    .lines
+                    .push(vec![Span::styled(msg, Style::default().fg(Color::Yellow))].into());
+                self.text_area_content
+                    .lines
+                    .push(vec![Span::raw("")].into());
             }
             Ok(Message::RawCameraImage(raw)) => {
                 in_camera_frame = CameraFrame::from_camera_image(
@@ -247,10 +246,10 @@ impl<'a> ChaiTerminal<'a> {
                     }
                 });
 
-            // frame.render_widget(received_camera, chunks[0]);
-            // frame.render_widget(input_block, chunks[1]);
-            // frame.render_widget(input_paragraph, input_paragraph_rect);
-            // frame.render_widget(camera_feedback, cam_feedback_rect);
+            frame.render_widget(received_camera, chunks[0]);
+            frame.render_widget(input_block, chunks[1]);
+            frame.render_widget(input_paragraph, input_paragraph_rect);
+            frame.render_widget(camera_feedback, cam_feedback_rect);
         })?;
 
         Ok(())
