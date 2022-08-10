@@ -29,6 +29,7 @@ use tui::widgets::canvas::{Canvas, Rectangle};
 use tui::widgets::Block;
 use tui::widgets::Borders;
 use tui::widgets::Paragraph;
+use tui::widgets::Wrap;
 use tui::{backend::CrosstermBackend, Terminal};
 
 use crate::types::Res;
@@ -117,7 +118,7 @@ impl<'a> ChaiTerminal<'a> {
                             msg.username.unwrap_or("anonymous".to_string()),
                             msg.text
                         ),
-                        Style::default().fg(Color::Yellow),
+                        Style::default().fg(Color::Green),
                     )]
                     .into(),
                 );
@@ -139,6 +140,7 @@ impl<'a> ChaiTerminal<'a> {
             Err(_) => (),
         }
         let input_paragraph = Paragraph::new(self.text_area_content.clone())
+            .wrap( Wrap { trim: false })
             .scroll(((self.text_area_content.lines.len() as u16 - 4 + self.scroll as u16).max(0), 0));
         let input_paragraph_rect = Rect {
             x: chunks[1].x + 1,
