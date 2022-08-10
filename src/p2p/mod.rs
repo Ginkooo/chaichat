@@ -116,6 +116,8 @@ impl P2p {
             .unique().filter(|&peer_id| peer_id != self.peer_id)
             .collect::<Vec<PeerId>>();
 
+        block_on(self.in_sender.send(Message::Text(format!("Dialing: {:?}", peer_ids_to_dial.clone())))).unwrap();
+
         let guest = Guest {
             id: None,
             name: self.username.clone(),
@@ -182,22 +184,24 @@ impl P2p {
             .listen_on(self.relay_multiaddr.clone().with(Protocol::P2pCircuit))
             .unwrap();
 
-        // for peer_id in peer_ids_to_dial {
-        //     swarm
-        //         .dial(
-        //             self.relay_multiaddr
-        //                 .clone()
-        //                 .with(Protocol::P2pCircuit)
-        //                 .with(Protocol::P2p(peer_id.into())),
-        //         )
-        //         .unwrap();
-        //     block_on(
-        //         self.in_sender
-        //             .clone()
-        //             .send(Message::Text(format!("Dialing {}", peer_id.to_string()))),
-        //     )
-        //     .unwrap();
-        // }
+
+        for peer_id in peer_ids_to_dial {
+            swarm
+                .dial(
+                    self.relay_multiaddr
+                        .clone()
+                        .with(Protocol::P2pCircuit)
+                        .with(Protocol::P2p(peer_id.into())),
+                )
+                .unwrap();
+
+            block_on(
+                self.in_sender
+                    .clone()
+                    .send(Message::Text(format!("Dialing {}", peer_id.to_string()))),
+            )
+            .unwrap();
+        }
 
         self.run_swarm_loop(&mut swarm, main_topic);
 
@@ -279,7 +283,7 @@ impl P2p {
                         SwarmEvent::OutgoingConnectionError { peer_id, error } => {
                             in_sender.send(Message::Text(format!("{} disconnected! ({})", match peer_id {
                                 Some(peer_id) => {
-                                    // swarm.behaviour_mut().floodsub.remove_node_from_partial_view(&peer_id);
+                                    swarm.behaviour_mut().floodsub.remove_node_from_partial_view(&peer_id);
                                     peer_id.to_string()
                                 }
                                 None => "somebody".to_string()
