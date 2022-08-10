@@ -279,13 +279,12 @@ impl P2p {
                             swarm.behaviour_mut().floodsub.add_node_to_partial_view(peer_id);
                         }
                         SwarmEvent::OutgoingConnectionError { peer_id, error } => {
-                            in_sender.send(Message::Text(format!("{} disconnected! ({})", match peer_id {
+                            in_sender.send(Message::Text(format!("{} disconnected!", match peer_id {
                                 Some(peer_id) => {
-                                    swarm.behaviour_mut().floodsub.remove_node_from_partial_view(&peer_id);
                                     peer_id.to_string()
                                 }
                                 None => "somebody".to_string()
-                            }, error))).await.unwrap();
+                            }))).await.unwrap();
                         }
                         _ => {}
                     },
