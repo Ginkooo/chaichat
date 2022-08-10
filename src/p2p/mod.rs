@@ -34,6 +34,7 @@ use std::fs::File;
 use std::io::Read;
 use std::io::Write;
 use std::net::Ipv4Addr;
+use std::path::PathBuf;
 use std::str::FromStr;
 
 use crate::consts::RELAY_MULTIADDR;
@@ -44,28 +45,48 @@ pub struct P2p {
     key: identity::Keypair,
     in_sender: Sender<Message>,
     out_receiver: Receiver<Message>,
+    username: String,
 }
 
 impl P2p {
     pub fn new(in_sender: Sender<Message>, out_receiver: Receiver<Message>) -> Self {
         let mut local_key = identity::Keypair::generate_ed25519();
         let mut path = dirs::config_dir().unwrap();
-        path.push("chaichat_private_key");
+        let mut path_clone = path.clone();
+        path_clone.push("temporary_chaichat");
+        match File::create(&path_clone) {
+            Ok(_) => {
+            }
+            Err(_) => {
+                path = PathBuf::from(".")
+            }
+        }
+        std::fs::remove_file(&path_clone).ok();
+
+        path.push("chaichat_local_key");
 
         match File::open(&path) {
             Ok(mut file) => {
                 let mut v: Vec<u8> = Vec::new();
                 file.read_to_end(&mut v).unwrap();
-                local_key = identity::Keypair::from_protobuf_encoding(&v[..]).unwrap();
+                local_key = identity::Keypair::from_protobuf_encoding(&v[..]).unwrap_or(local_key);
             }
             Err(_) => {}
         };
 
         let encoded = local_key.to_protobuf_encoding().unwrap();
 
-        File::create(&path).unwrap().write(&encoded).unwrap();
+        let mut file = File::create(&path).unwrap();
+        file.write(&encoded).unwrap();
 
         let local_peer_id = PeerId::from(local_key.public());
+
+        block_on(
+            in_sender
+                .clone()
+                .send(Message::Text(format!("My peer id is: {}", local_peer_id))),
+        )
+        .unwrap();
 
         Self {
             relay_multiaddr: RELAY_MULTIADDR.parse().unwrap(),
@@ -73,6 +94,7 @@ impl P2p {
             key: local_key,
             in_sender,
             out_receiver,
+            username: local_peer_id.to_string().chars().rev().take(5).collect(),
         }
     }
 
@@ -91,12 +113,12 @@ impl P2p {
             .map(|guest| PeerId::from_str(&guest.multiaddr).ok())
             .filter(|it| it.is_some())
             .map(|it| it.unwrap())
-            .unique()
+            .unique().filter(|&peer_id| peer_id != self.peer_id)
             .collect::<Vec<PeerId>>();
 
         let guest = Guest {
             id: None,
-            name: self.peer_id.to_string()[0..5].to_string(),
+            name: self.username.clone(),
             multiaddr: self.peer_id.to_string(),
             room_id: default_room.id.unwrap(),
         };
@@ -104,8 +126,8 @@ impl P2p {
         client
             .post(format!("{}/join", ROOMS_ADDRESS))
             .json(&guest)
-            .send()
-            .ok();
+            .send()?
+            .text().unwrap();
 
         let (transport, client) =
             transport::create_transport(self.key.clone(), self.peer_id.clone());
@@ -149,20 +171,33 @@ impl P2p {
 
         self.exchange_public_addresses_with_relay(&mut swarm);
 
+        block_on(
+            self.in_sender
+                .clone()
+                .send(Message::Text("Exchanged addresses with relay".to_string())),
+        )
+        .unwrap();
+
         swarm
             .listen_on(self.relay_multiaddr.clone().with(Protocol::P2pCircuit))
             .unwrap();
 
-        for peer_id in peer_ids_to_dial {
-            swarm
-                .dial(
-                    self.relay_multiaddr
-                        .clone()
-                        .with(Protocol::P2pCircuit)
-                        .with(Protocol::P2p(peer_id.into())),
-                )
-                .unwrap();
-        }
+        // for peer_id in peer_ids_to_dial {
+        //     swarm
+        //         .dial(
+        //             self.relay_multiaddr
+        //                 .clone()
+        //                 .with(Protocol::P2pCircuit)
+        //                 .with(Protocol::P2p(peer_id.into())),
+        //         )
+        //         .unwrap();
+        //     block_on(
+        //         self.in_sender
+        //             .clone()
+        //             .send(Message::Text(format!("Dialing {}", peer_id.to_string()))),
+        //     )
+        //     .unwrap();
+        // }
 
         self.run_swarm_loop(&mut swarm, main_topic);
 
@@ -215,20 +250,23 @@ impl P2p {
                         SwarmEvent::Behaviour(Event::Relay(
                             client::Event::ReservationReqAccepted { .. },
                         )) => {
+                            in_sender.send(Message::Text("Relay accepted out reservation request".to_string())).await.unwrap();
                             info!("Relay accepted our reservation request.");
                         }
                         SwarmEvent::Behaviour(Event::Relay(event)) => {
+                            in_sender.send(Message::Text(format!("{:?}", event))).await.unwrap();;
                             info!("{:?}", event)
                         }
                         SwarmEvent::Behaviour(Event::Dcutr(event)) => {
-                            info!("{:?}", event)
+                            info!("dcutr: {:?}", event);
+                            dbg!(event);
                         }
                         SwarmEvent::Behaviour(Event::Identify(event)) => {
                             info!("{:?}", event)
                         }
                         SwarmEvent::Behaviour(Event::Floodsub(FloodsubEvent::Message(msg))) => {
                             let message = bincode::deserialize::<Message>(&msg.data).unwrap_or(Message::Empty);
-                            self.in_sender.send(message).await.unwrap();
+                            in_sender.send(message).await.unwrap();
                         }
                         SwarmEvent::Behaviour(Event::Ping(_event)) => {
                         }
@@ -241,7 +279,7 @@ impl P2p {
                         SwarmEvent::OutgoingConnectionError { peer_id, error } => {
                             in_sender.send(Message::Text(format!("{} disconnected! ({})", match peer_id {
                                 Some(peer_id) => {
-                                    swarm.behaviour_mut().floodsub.remove_node_from_partial_view(&peer_id);
+                                    // swarm.behaviour_mut().floodsub.remove_node_from_partial_view(&peer_id);
                                     peer_id.to_string()
                                 }
                                 None => "somebody".to_string()

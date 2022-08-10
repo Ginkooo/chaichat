@@ -29,6 +29,7 @@ use tui::widgets::canvas::{Canvas, Rectangle};
 use tui::widgets::Block;
 use tui::widgets::Borders;
 use tui::widgets::Paragraph;
+use tui::widgets::Wrap;
 use tui::{backend::CrosstermBackend, Terminal};
 
 use crate::types::Res;
@@ -37,6 +38,7 @@ pub struct ChaiTerminal<'a> {
     prev_camera_frame: Option<CameraFrame>,
     inner_terminal: Terminal<CrosstermBackend<Stdout>>,
     text_area_content: Text<'a>,
+    scroll: i32,
 }
 
 impl<'a> ChaiTerminal<'a> {
@@ -53,6 +55,7 @@ impl<'a> ChaiTerminal<'a> {
             prev_camera_frame: None,
             inner_terminal: terminal,
             text_area_content: Text::from("\n\n"),
+            scroll: 0,
         })
     }
 
@@ -107,6 +110,22 @@ impl<'a> ChaiTerminal<'a> {
                     .lines
                     .push(vec![Span::raw("")].into());
             }
+            Ok(Message::UserMessage(msg)) => {
+                self.text_area_content.lines.push(
+                    vec![Span::styled(
+                        format!(
+                            "{}: {}",
+                            msg.username.unwrap_or("anonymous".to_string()),
+                            msg.text
+                        ),
+                        Style::default().fg(Color::Green),
+                    )]
+                    .into(),
+                );
+                self.text_area_content
+                    .lines
+                    .push(vec![Span::raw("")].into());
+            }
             Ok(Message::RawCameraImage(raw)) => {
                 in_camera_frame = CameraFrame::from_camera_image(
                     CameraImage::from_raw(
@@ -121,7 +140,8 @@ impl<'a> ChaiTerminal<'a> {
             Err(_) => (),
         }
         let input_paragraph = Paragraph::new(self.text_area_content.clone())
-            .scroll(((self.text_area_content.lines.len() as u16 - 4).max(0), 0));
+            .wrap( Wrap { trim: false })
+            .scroll(((self.text_area_content.lines.len() as u16 - 4 + self.scroll as u16).max(0), 0));
         let input_paragraph_rect = Rect {
             x: chunks[1].x + 1,
             y: chunks[1].y + 1,
@@ -154,6 +174,8 @@ impl<'a> ChaiTerminal<'a> {
                             Spans::from(vec![span]),
                         );
                     }
+                    KeyCode::PageUp => self.scroll += 1,
+                    KeyCode::PageDown => self.scroll -= 1,
                     KeyCode::Enter => {
                         let response = match handle_command(
                             &self.get_text_area_last_span_content(),
