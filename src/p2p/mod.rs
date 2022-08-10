@@ -51,8 +51,19 @@ pub struct P2p {
 impl P2p {
     pub fn new(in_sender: Sender<Message>, out_receiver: Receiver<Message>) -> Self {
         let mut local_key = identity::Keypair::generate_ed25519();
-        let mut path = PathBuf::from(".");  //dirs::data_local_dir().unwrap();
-        path.push("chaichat_private_key");
+        let mut path = dirs::config_dir().unwrap();
+        let mut path_clone = path.clone();
+        path_clone.push("temporary_chaichat");
+        match File::create(&path_clone) {
+            Ok(_) => {
+            }
+            Err(_) => {
+                path = PathBuf::from(".")
+            }
+        }
+        std::fs::remove_file(&path_clone).ok();
+
+        path.push("chaichat_local_key");
 
         match File::open(&path) {
             Ok(mut file) => {
