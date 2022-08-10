@@ -37,6 +37,7 @@ pub struct ChaiTerminal<'a> {
     prev_camera_frame: Option<CameraFrame>,
     inner_terminal: Terminal<CrosstermBackend<Stdout>>,
     text_area_content: Text<'a>,
+    scroll: i32,
 }
 
 impl<'a> ChaiTerminal<'a> {
@@ -53,6 +54,7 @@ impl<'a> ChaiTerminal<'a> {
             prev_camera_frame: None,
             inner_terminal: terminal,
             text_area_content: Text::from("\n\n"),
+            scroll: 0,
         })
     }
 
@@ -137,7 +139,7 @@ impl<'a> ChaiTerminal<'a> {
             Err(_) => (),
         }
         let input_paragraph = Paragraph::new(self.text_area_content.clone())
-            .scroll(((self.text_area_content.lines.len() as u16 - 4).max(0), 0));
+            .scroll(((self.text_area_content.lines.len() as u16 - 4 + self.scroll as u16).max(0), 0));
         let input_paragraph_rect = Rect {
             x: chunks[1].x + 1,
             y: chunks[1].y + 1,
@@ -170,6 +172,8 @@ impl<'a> ChaiTerminal<'a> {
                             Spans::from(vec![span]),
                         );
                     }
+                    KeyCode::PageUp => self.scroll += 1,
+                    KeyCode::PageDown => self.scroll -= 1,
                     KeyCode::Enter => {
                         let response = match handle_command(
                             &self.get_text_area_last_span_content(),
