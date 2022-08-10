@@ -184,7 +184,6 @@ impl P2p {
             .listen_on(self.relay_multiaddr.clone().with(Protocol::P2pCircuit))
             .unwrap();
 
-
         for peer_id in peer_ids_to_dial {
             swarm
                 .dial(
@@ -194,7 +193,6 @@ impl P2p {
                         .with(Protocol::P2p(peer_id.into())),
                 )
                 .unwrap();
-
             block_on(
                 self.in_sender
                     .clone()
