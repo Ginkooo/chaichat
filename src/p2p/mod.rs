@@ -105,7 +105,7 @@ impl P2p {
 
         let guest = Guest {
             id: None,
-            name: self.peer_id.to_string()[0..5].to_string(),
+            name: self.username.clone(),
             multiaddr: self.peer_id.to_string(),
             room_id: default_room.id.unwrap(),
         };
@@ -113,8 +113,8 @@ impl P2p {
         client
             .post(format!("{}/join", ROOMS_ADDRESS))
             .json(&guest)
-            .send()
-            .ok();
+            .send()?
+            .text().unwrap();
 
         let (transport, client) =
             transport::create_transport(self.key.clone(), self.peer_id.clone());
@@ -165,9 +165,9 @@ impl P2p {
         )
         .unwrap();
 
-        swarm
-            .listen_on(self.relay_multiaddr.clone().with(Protocol::P2pCircuit))
-            .unwrap();
+        // swarm
+        //     .listen_on(self.relay_multiaddr.clone().with(Protocol::P2pCircuit))
+        //     .unwrap();
 
         for peer_id in peer_ids_to_dial {
             swarm
