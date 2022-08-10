@@ -65,8 +65,8 @@ impl P2p {
 
         let encoded = local_key.to_protobuf_encoding().unwrap();
 
-
-        File::create(&path).unwrap().write(&encoded).unwrap();
+        let mut file = File::create(&path).unwrap();
+        file.write(&encoded).unwrap();
 
         let local_peer_id = PeerId::from(local_key.public());
 
