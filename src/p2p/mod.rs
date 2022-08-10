@@ -57,14 +57,19 @@ impl P2p {
             Ok(mut file) => {
                 let mut v: Vec<u8> = Vec::new();
                 file.read_to_end(&mut v).unwrap();
-                local_key = identity::Keypair::from_protobuf_encoding(&v[..]).unwrap();
+                local_key = identity::Keypair::from_protobuf_encoding(&v[..]).unwrap_or(local_key);
             }
             Err(_) => {}
         };
 
+        let mut file = File::create(&path).unwrap_or_else(|_| {
+            File::create(".").expect("Could not create file even in current directory")
+        });
+
+
         let encoded = local_key.to_protobuf_encoding().unwrap();
 
-        File::create(&path).unwrap().write(&encoded).unwrap();
+        file.write(&encoded).unwrap();
 
         let local_peer_id = PeerId::from(local_key.public());
 
