@@ -34,6 +34,7 @@ use std::fs::File;
 use std::io::Read;
 use std::io::Write;
 use std::net::Ipv4Addr;
+use std::path::Path;
 use std::str::FromStr;
 
 use crate::consts::RELAY_MULTIADDR;
@@ -50,7 +51,7 @@ pub struct P2p {
 impl P2p {
     pub fn new(in_sender: Sender<Message>, out_receiver: Receiver<Message>) -> Self {
         let mut local_key = identity::Keypair::generate_ed25519();
-        let mut path = dirs::config_dir().unwrap();
+        let mut path = dirs::data_local_dir().unwrap();
         path.push("chaichat_private_key");
 
         match File::open(&path) {
@@ -62,14 +63,10 @@ impl P2p {
             Err(_) => {}
         };
 
-        let mut file = File::create(&path).unwrap_or_else(|_| {
-            File::create(".").expect("Could not create file even in current directory")
-        });
-
-
         let encoded = local_key.to_protobuf_encoding().unwrap();
 
-        file.write(&encoded).unwrap();
+
+        File::create(&path).unwrap().write(&encoded).unwrap();
 
         let local_peer_id = PeerId::from(local_key.public());
 
