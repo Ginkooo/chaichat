@@ -67,6 +67,13 @@ impl P2p {
 
         let local_peer_id = PeerId::from(local_key.public());
 
+        block_on(
+            in_sender
+                .clone()
+                .send(Message::Text(format!("My peer id is: {}", local_peer_id))),
+        )
+        .unwrap();
+
         Self {
             relay_multiaddr: RELAY_MULTIADDR.parse().unwrap(),
             peer_id: local_peer_id,
@@ -149,9 +156,9 @@ impl P2p {
 
         self.exchange_public_addresses_with_relay(&mut swarm);
 
-        swarm
-            .listen_on(self.relay_multiaddr.clone().with(Protocol::P2pCircuit))
-            .unwrap();
+        // swarm
+        //     .listen_on(self.relay_multiaddr.clone().with(Protocol::P2pCircuit))
+        //     .unwrap();
 
         for peer_id in peer_ids_to_dial {
             swarm
@@ -222,7 +229,8 @@ impl P2p {
                             info!("{:?}", event)
                         }
                         SwarmEvent::Behaviour(Event::Dcutr(event)) => {
-                            info!("dcutr: {:?}", event)
+                            info!("dcutr: {:?}", event);
+                            dbg!(event);
                         }
                         SwarmEvent::Behaviour(Event::Identify(event)) => {
                             info!("{:?}", event)
