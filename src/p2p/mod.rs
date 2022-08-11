@@ -9,34 +9,34 @@ use crate::commands::Guest;
 use crate::commands::Room;
 use crate::commands::ROOMS_ADDRESS;
 use crate::p2p::behaviour::Behaviour;
-use crate::p2p::event::Event;
+
 use crate::types::Message;
 use async_std::channel::{Receiver, Sender};
-use bincode;
-use dirs;
+
+
 use futures::executor::block_on;
 use futures::future::FutureExt;
 use futures::prelude::{stream::StreamExt, *};
 use itertools::Itertools;
 use libp2p::core::multiaddr::{Multiaddr, Protocol};
 use libp2p::floodsub::Topic;
-use libp2p::floodsub::{self, FloodsubEvent};
-use libp2p::identify::{IdentifyEvent, IdentifyInfo};
-use libp2p::relay::v2::client;
+
+
+
 use libp2p::swarm::{SwarmBuilder, SwarmEvent};
-use libp2p::Swarm;
+
 use libp2p::{identity, PeerId};
 use log::info;
 use log::log_enabled;
 use reqwest::blocking as reqwest;
-use std::collections::HashMap;
+
 use std::convert::TryInto;
 use std::error::Error;
-use std::fs::File;
+
 use std::io::Read;
-use std::io::Write;
+
 use std::net::Ipv4Addr;
-use std::path::PathBuf;
+
 use std::str::FromStr;
 
 use crate::consts::RELAY_MULTIADDR;
@@ -113,7 +113,7 @@ impl P2p {
         let (transport, client) =
             transport::create_transport(self.key.clone(), self.peer_id.clone());
 
-        let mut behaviour = Behaviour::new(self.key.public(), client);
+        let behaviour = Behaviour::new(self.key.public(), client);
 
         let mut swarm = SwarmBuilder::new(transport, behaviour, self.peer_id)
             .dial_concurrency_factor(10_u8.try_into().unwrap())

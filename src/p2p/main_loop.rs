@@ -1,7 +1,7 @@
 use futures::{executor::block_on, prelude::*, select};
 use libp2p::dcutr::behaviour::Event::DirectConnectionUpgradeSucceeded;
 use libp2p::{
-    floodsub::{FloodsubEvent, Topic},
+    floodsub::{FloodsubEvent},
     relay::v2::client,
     Swarm,
 };
@@ -48,11 +48,11 @@ impl P2p {
                         SwarmEvent::Behaviour(Event::Ping(_event)) => {
                         }
                         SwarmEvent::ConnectionEstablished {
-                            peer_id, endpoint, ..
+                            peer_id, endpoint: _, ..
                         } => {
                             swarm.behaviour_mut().floodsub.add_node_to_partial_view(peer_id);
                         }
-                        SwarmEvent::OutgoingConnectionError { peer_id, error } => {}
+                        SwarmEvent::OutgoingConnectionError { peer_id: _, error: _ } => {}
                         _ => {}
                     },
                     message = out_receiver.next() => match message {

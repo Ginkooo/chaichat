@@ -7,7 +7,7 @@ use crate::types::Message;
 use async_std::channel::{Receiver, Sender};
 use async_std::stream::StreamExt;
 use crossterm::event::Event;
-use rand::{distributions::Alphanumeric, Rng};
+
 
 use crossterm::event::KeyCode;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
@@ -95,7 +95,7 @@ impl<'a> ChaiTerminal<'a> {
             .constraints([Constraint::Percentage(80), Constraint::Percentage(20)])
             .split(size);
 
-        let video_block = Block::default().borders(Borders::all()).title("video");
+        let _video_block = Block::default().borders(Borders::all()).title("video");
         let input_block = Block::default().borders(Borders::all()).title("input");
         let mut in_camera_frame = CameraFrame::from_camera_image(CameraImage::new(
             DEFAULT_CAMERA_SIZE[0] as u32,
