@@ -13,7 +13,6 @@ use crate::p2p::behaviour::Behaviour;
 use crate::types::Message;
 use async_std::channel::{Receiver, Sender};
 
-
 use futures::executor::block_on;
 use futures::future::FutureExt;
 use futures::prelude::{stream::StreamExt, *};
@@ -21,14 +20,13 @@ use itertools::Itertools;
 use libp2p::core::multiaddr::{Multiaddr, Protocol};
 use libp2p::floodsub::Topic;
 
-
-
 use libp2p::swarm::{SwarmBuilder, SwarmEvent};
 
 use libp2p::{identity, PeerId};
 use log::info;
 use log::log_enabled;
 use reqwest::blocking as reqwest;
+use tui::symbols::block;
 
 use std::convert::TryInto;
 use std::error::Error;
@@ -84,6 +82,8 @@ impl P2p {
             .send()?
             .json()?;
 
+        self.message_on_debug("Got room list");
+
         let default_room = rooms.iter().find(|&it| it.name == "main").unwrap();
 
         let peer_ids_to_dial = default_room
@@ -109,6 +109,8 @@ impl P2p {
             .send()?
             .text()
             .unwrap();
+
+        self.message_on_debug("Got guest list");
 
         let (transport, client) =
             transport::create_transport(self.key.clone(), self.peer_id.clone());
@@ -147,6 +149,8 @@ impl P2p {
         });
 
         self.exchange_public_addresses_with_relay(&mut swarm);
+
+        self.message_on_debug("Done negotiating with the relay");
 
         swarm
             .listen_on(self.relay_multiaddr.clone().with(Protocol::P2pCircuit))

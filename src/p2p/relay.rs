@@ -5,9 +5,7 @@ use libp2p::{
     Swarm,
 };
 use libp2p_swarm::SwarmEvent;
-use log::{info, log_enabled};
-
-use crate::types::Message;
+use log::info;
 
 use super::{behaviour::Behaviour, event::Event, P2p};
 
@@ -21,17 +19,23 @@ impl P2p {
             loop {
                 match swarm.next().await.unwrap() {
                     SwarmEvent::NewListenAddr { .. } => {}
-                    SwarmEvent::Dialing { .. } => {}
-                    SwarmEvent::ConnectionEstablished { .. } => {}
+                    SwarmEvent::Dialing { .. } => {
+                        self.message_on_debug("Dialing the relay");
+                    }
+                    SwarmEvent::ConnectionEstablished { .. } => {
+                        self.message_on_debug("Established connection with the relay");
+                    }
                     SwarmEvent::Behaviour(Event::Ping(_)) => {}
                     SwarmEvent::Behaviour(Event::Identify(IdentifyEvent::Sent { .. })) => {
                         info!("Told relay its public address.");
+                        self.message_on_debug("Told relay its public address");
                         told_relay_observed_addr = true;
                     }
                     SwarmEvent::Behaviour(Event::Identify(IdentifyEvent::Received {
                         info: IdentifyInfo { observed_addr, .. },
                         ..
                     })) => {
+                        self.message_on_debug("Relay told us our public address");
                         info!("Relay told us our public address: {:?}", observed_addr);
                         learned_observed_addr = true;
                     }
@@ -44,13 +48,6 @@ impl P2p {
             }
         });
 
-        if log_enabled!(log::Level::Debug) {
-            block_on(
-                self.in_sender
-                    .clone()
-                    .send(Message::Text("Exchanged addresses with relay".to_string())),
-            )
-            .unwrap();
-        }
+        self.message_on_debug("Exchanged address with relay");
     }
 }

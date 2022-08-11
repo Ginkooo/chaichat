@@ -11,6 +11,13 @@ use crate::{
 
 impl P2p {
     pub fn run_swarm_loop(&self, swarm: &mut Swarm<Behaviour>) {
+        if log_enabled!(Level::Debug) {
+            block_on(
+                self.in_sender
+                    .send(Message::Text("Running swarm loop".to_string())),
+            )
+            .unwrap();
+        }
         swarm
             .behaviour_mut()
             .floodsub
@@ -27,6 +34,9 @@ impl P2p {
                         SwarmEvent::Behaviour(Event::Relay(
                             client::Event::ReservationReqAccepted { .. },
                         )) => {
+                            if log_enabled!(Level::Debug) {
+                                self.in_sender.send(Message::Text("Relay accepted our reservation request".to_string())).await.unwrap();
+                            }
                             info!("Relay accepted our reservation request.");
                         }
                         SwarmEvent::Behaviour(Event::Relay(event)) => {
