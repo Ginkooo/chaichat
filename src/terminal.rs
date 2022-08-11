@@ -8,7 +8,6 @@ use async_std::channel::{Receiver, Sender};
 use async_std::stream::StreamExt;
 use crossterm::event::Event;
 
-
 use crossterm::event::KeyCode;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use futures::executor::block_on;
@@ -217,8 +216,9 @@ impl<'a> ChaiTerminal<'a> {
                 .ok_or(std::io::Error::last_os_error())
         }))
         .unwrap_or(CameraFrame::from_camera_image(CameraImage::new(640, 480)));
-        let serializable_camera = camera_frame.camera_image.clone().into_raw();
-        block_on(out_p2p_sender.send(Message::RawCameraImage(serializable_camera))).unwrap();
+        // let serializable_camera = camera_frame.camera_image.clone().into_raw();
+        // block_on(out_p2p_sender.send(Message::RawCameraImage(serializable_camera))).unwrap();
+        block_on(out_p2p_sender.send(Message::Text("dupsko".to_string()))).unwrap();
 
         let new_width = (width as f64 * 0.2) as u16;
         let new_height = (height as f64 * 0.2) as u16;
