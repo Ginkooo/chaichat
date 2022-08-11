@@ -50,7 +50,7 @@ impl P2p {
                             peer_id, endpoint: _, ..
                         } => {}
                         SwarmEvent::OutgoingConnectionError { peer_id: _, error } => {
-                            error!("{:?}", error);
+                            info!("{:?}", error);
                             if log_enabled!(Level::Debug) {
                                 in_sender.send(Message::Text(format!("{:?}", error))).await.unwrap();
                             }
