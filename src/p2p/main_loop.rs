@@ -1,10 +1,6 @@
 use futures::{executor::block_on, prelude::*, select};
 use libp2p::dcutr::behaviour::Event::DirectConnectionUpgradeSucceeded;
-use libp2p::{
-    floodsub::{FloodsubEvent},
-    relay::v2::client,
-    Swarm,
-};
+use libp2p::{floodsub::FloodsubEvent, relay::v2::client, Swarm};
 use libp2p_swarm::SwarmEvent;
 use log::info;
 
@@ -35,7 +31,7 @@ impl P2p {
                         SwarmEvent::Behaviour(Event::Dcutr(DirectConnectionUpgradeSucceeded {remote_peer_id})) => {
                             let username = utils::get_username_from_peer_id(remote_peer_id);
                             in_sender.send(Message::Text(format!("{} connected p2p!", username))).await.unwrap();
-                            swarm.behaviour_mut().floodsub.subscribe(self.main_topic.clone());
+                            swarm.behaviour_mut().floodsub.add_node_to_partial_view(peer_id);
                             info!("dcutr: {:?}", event);
                         }
                         SwarmEvent::Behaviour(Event::Identify(event)) => {
@@ -50,7 +46,6 @@ impl P2p {
                         SwarmEvent::ConnectionEstablished {
                             peer_id, endpoint: _, ..
                         } => {
-                            swarm.behaviour_mut().floodsub.add_node_to_partial_view(peer_id);
                         }
                         SwarmEvent::OutgoingConnectionError { peer_id: _, error: _ } => {}
                         _ => {}
