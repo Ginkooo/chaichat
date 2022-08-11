@@ -14,7 +14,7 @@ use crate::{
 };
 
 impl P2p {
-    pub fn run_swarm_loop(&self, swarm: &mut Swarm<Behaviour>, topic: Topic) {
+    pub fn run_swarm_loop(&self, swarm: &mut Swarm<Behaviour>) {
         let mut out_receiver = self.out_receiver.clone();
         let in_sender = self.in_sender.clone();
         block_on(async {
@@ -65,7 +65,7 @@ impl P2p {
                                 _ => {}
                             }
                             let encoded = bincode::serialize(&msg).unwrap();
-                            swarm.behaviour_mut().floodsub.publish(topic.clone(), encoded);
+                            swarm.behaviour_mut().floodsub.publish(self.main_topic.clone(), encoded);
                         }
                     }
                 );

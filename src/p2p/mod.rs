@@ -171,7 +171,7 @@ impl P2p {
             }
         }
 
-        self.run_swarm_loop(&mut swarm, main_topic);
+        self.run_swarm_loop(&mut swarm);
 
         Ok(())
     }
