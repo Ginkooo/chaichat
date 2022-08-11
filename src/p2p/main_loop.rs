@@ -2,7 +2,7 @@ use futures::{executor::block_on, prelude::*, select};
 use libp2p::dcutr::behaviour::Event::DirectConnectionUpgradeSucceeded;
 use libp2p::{floodsub::FloodsubEvent, relay::v2::client, Swarm};
 use libp2p_swarm::SwarmEvent;
-use log::info;
+use log::{error, info, log_enabled, Level};
 
 use crate::{
     p2p::{event::Event, utils, Behaviour, P2p},
@@ -11,6 +11,10 @@ use crate::{
 
 impl P2p {
     pub fn run_swarm_loop(&self, swarm: &mut Swarm<Behaviour>) {
+        swarm
+            .behaviour_mut()
+            .floodsub
+            .subscribe(self.main_topic.clone());
         let mut out_receiver = self.out_receiver.clone();
         let in_sender = self.in_sender.clone();
         block_on(async {
@@ -45,9 +49,13 @@ impl P2p {
                         }
                         SwarmEvent::ConnectionEstablished {
                             peer_id, endpoint: _, ..
-                        } => {
+                        } => {}
+                        SwarmEvent::OutgoingConnectionError { peer_id: _, error } => {
+                            error!("{:?}", error);
+                            if log_enabled!(Level::Debug) {
+                                in_sender.send(Message::Text(format!("{:?}", error))).await.unwrap();
+                            }
                         }
-                        SwarmEvent::OutgoingConnectionError { peer_id: _, error: _ } => {}
                         _ => {}
                     },
                     message = out_receiver.next() => match message {
