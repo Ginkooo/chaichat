@@ -1,4 +1,4 @@
-use crate::types::Message;
+use crate::types::{Message, UserMessage};
 use async_std::channel::Sender;
 use futures::executor::block_on;
 use serde::{Deserialize, Serialize};
@@ -26,7 +26,10 @@ pub struct Room {
 pub fn handle_command(string: &String, out_sender: Sender<Message>) -> Res<String> {
     let client = reqwest::Client::new();
     if !string.starts_with("/") {
-        let msg = Message::Text(string.clone());
+        let msg = Message::UserMessage(UserMessage {
+            username: None,
+            text: string.clone(),
+        });
         block_on(out_sender.send(msg)).unwrap();
         return Ok(String::new());
     }

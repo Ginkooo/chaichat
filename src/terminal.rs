@@ -140,8 +140,11 @@ impl<'a> ChaiTerminal<'a> {
             Err(_) => (),
         }
         let input_paragraph = Paragraph::new(self.text_area_content.clone())
-            .wrap( Wrap { trim: false })
-            .scroll(((self.text_area_content.lines.len() as u16 - 4 + self.scroll as u16).max(0), 0));
+            .wrap(Wrap { trim: false })
+            .scroll((
+                (self.text_area_content.lines.len() as u16 - 4 + self.scroll as u16).max(0),
+                0,
+            ));
         let input_paragraph_rect = Rect {
             x: chunks[1].x + 1,
             y: chunks[1].y + 1,
@@ -214,8 +217,8 @@ impl<'a> ChaiTerminal<'a> {
                 .ok_or(std::io::Error::last_os_error())
         }))
         .unwrap_or(CameraFrame::from_camera_image(CameraImage::new(640, 480)));
-        // let serializable_camera = camera_frame.camera_image.clone().into_raw();
-        // block_on(out_p2p_sender.send(Message::RawCameraImage(serializable_camera))).unwrap();
+        let serializable_camera = camera_frame.camera_image.clone().into_raw();
+        block_on(out_p2p_sender.send(Message::RawCameraImage(serializable_camera))).unwrap();
 
         let new_width = (width as f64 * 0.2) as u16;
         let new_height = (height as f64 * 0.2) as u16;
