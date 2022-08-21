@@ -26,7 +26,7 @@ use libp2p::{identity, PeerId};
 use log::info;
 use log::log_enabled;
 use reqwest::blocking as reqwest;
-use tui::symbols::block;
+
 
 use std::convert::TryInto;
 use std::error::Error;
