@@ -203,8 +203,7 @@ impl<'a> ChaiTerminal<'a> {
                     }
                     _ => {}
                 },
-                Event::Mouse(_) => {}
-                Event::Resize(_, _) => {}
+                _ => {}
             },
             Err(_) => {}
         }
