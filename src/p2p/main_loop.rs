@@ -58,10 +58,10 @@ impl P2p {
                         SwarmEvent::ConnectionEstablished {
                             peer_id: _, endpoint: _, ..
                         } => {}
-                        SwarmEvent::OutgoingConnectionError { peer_id: _, error } => {
+                        SwarmEvent::OutgoingConnectionError { peer_id, error } => {
                             info!("{:?}", error);
-                            if log_enabled!(Level::Debug) {
-                                self.channels.in_p2p_sender.send(Message::Text(format!("{:?}", error))).await.unwrap();
+                            if peer_id.is_some() {
+                                self.channels.in_p2p_sender.send(Message::Text(format!("Error with: {}", peer_id.unwrap()))).await.unwrap();
                             }
                         }
                         _ => {}
