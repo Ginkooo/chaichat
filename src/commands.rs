@@ -1,6 +1,6 @@
 use crate::types::{Message, UserMessage};
 use futures::channel::mpsc::UnboundedSender;
-use futures::executor::block_on;
+
 use futures::prelude::*;
 use serde::{Deserialize, Serialize};
 

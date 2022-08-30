@@ -3,11 +3,11 @@ use std::io::{stdout, Stdout};
 use crate::camera_frame::CameraFrame;
 use crate::commands::handle_command;
 use crate::types::CameraImage;
-use crate::types::ChaiError;
+
 use crate::types::ChannelsTerminalEnd;
 use crate::types::Message;
 use crossterm::event::Event;
-use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
+
 use futures::prelude::*;
 
 use crossterm::event::KeyCode;
