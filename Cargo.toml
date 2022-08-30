@@ -23,8 +23,8 @@ futures-timer = "*"
 instant = "*"
 log = "*"
 thiserror = "*"
-libp2p = { version = "*", default-features = false,  features = ["dcutr", "relay", "plaintext", "identify", "tcp-async-io", "ping", "noise", "dns-async-std", "floodsub"] }
-libp2p-yamux = "*"
+libp2p = { version = "0.47.0", default-features = false,  features = ["dcutr", "relay", "plaintext", "identify", "tcp-async-io", "ping", "noise", "dns-async-std", "floodsub"] }
+libp2p-yamux = "0.39.0"
 const_format = "*"
 
 [dependencies.nokhwa]
