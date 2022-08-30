@@ -12,7 +12,6 @@ use crate::p2p::behaviour::Behaviour;
 
 use crate::types::ChannelsP2pEnd;
 use crate::types::Message;
-use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use futures::executor::block_on;
 use futures::prelude::*;
@@ -51,15 +50,13 @@ impl P2p {
     pub fn new(channels: ChannelsP2pEnd) -> Self {
         let (local_peer_id, key) = get_local_peer_id();
 
-        if log_enabled!(log::Level::Debug) {
-            block_on(
-                channels
-                    .in_p2p_sender
-                    .clone()
-                    .send(Message::Text(format!("My peer id is: {}", local_peer_id))),
-            )
-            .unwrap();
-        }
+        block_on(
+            channels
+                .in_p2p_sender
+                .clone()
+                .send(Message::Text(format!("My peer id is: {}", local_peer_id))),
+        )
+        .unwrap();
 
         Self {
             relay_multiaddr: RELAY_MULTIADDR.parse().unwrap(),
