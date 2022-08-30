@@ -9,41 +9,56 @@ mod types;
 mod utils;
 
 use crate::p2p::P2p;
-use async_std::channel;
 use camera::run_camera_thread;
 use env_logger;
+use futures::channel::mpsc::unbounded;
 use input::start_input_event_thread;
 use std::thread;
 use terminal::ChaiTerminal;
-use types::{Message, Res};
+use types::{ChannelsP2pEnd, ChannelsTerminalEnd, Message, Res};
 
 fn main() -> Res<()> {
     env_logger::init();
 
-    let (out_p2p_sender, out_p2p_receiver) = channel::unbounded::<Message>();
-    let (in_p2p_sender, in_p2p_receiver) = channel::unbounded::<Message>();
+    let (out_p2p_sender, out_p2p_receiver) = unbounded::<Message>();
+    let (in_p2p_sender, mut in_p2p_receiver) = unbounded::<Message>();
 
     let mut term = ChaiTerminal::init()?;
 
-    let receiver_camera = run_camera_thread().expect("Could not start camera");
-    let input_event_receiver = start_input_event_thread();
-    let t1 = thread::spawn(move || loop {
-        term.draw_in_terminal(
-            receiver_camera.clone(),
-            input_event_receiver.clone(),
-            in_p2p_receiver.clone(),
-            out_p2p_sender.clone(),
-        )
-        .unwrap();
-    });
-    let t2 = thread::spawn(|| {
-        let p2p = P2p::new(in_p2p_sender, out_p2p_receiver);
+    let mut receiver_camera = run_camera_thread().expect("Could not start camera");
+    let mut input_event_receiver = start_input_event_thread();
 
-        p2p.start().unwrap();
-    });
+    let mut channels_terminal_end = ChannelsTerminalEnd {
+        receiver_camera: &mut receiver_camera,
+        input_event_receiver: &mut input_event_receiver,
+        in_p2p_receiver: &mut in_p2p_receiver,
+        out_p2p_sender,
+    };
 
-    t1.join().unwrap();
-    t2.join().unwrap();
+    let channeld_p2p_end = ChannelsP2pEnd {
+        in_p2p_sender,
+        out_p2p_receiver,
+    };
+
+    thread::scope(|scope| {
+        scope.spawn(|| loop {
+            match term.draw_in_terminal(&mut channels_terminal_end) {
+                Err(_) => {
+                    term.uninit();
+                    for _ in 0..100 {
+                        println!("");
+                    }
+                    std::process::exit(0);
+                }
+                _ => {}
+            }
+        });
+        scope.spawn(|| {
+            let mut p2p = P2p::new(channeld_p2p_end);
+
+            p2p.start().unwrap();
+        });
+    });
 
     Ok(())
 }

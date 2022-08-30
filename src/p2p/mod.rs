@@ -10,12 +10,12 @@ use crate::commands::Room;
 use crate::commands::ROOMS_ADDRESS;
 use crate::p2p::behaviour::Behaviour;
 
+use crate::types::ChannelsP2pEnd;
 use crate::types::Message;
-use async_std::channel::{Receiver, Sender};
+use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use futures::executor::block_on;
-use futures::future::FutureExt;
-use futures::prelude::{stream::StreamExt, *};
+use futures::prelude::*;
 use itertools::Itertools;
 use libp2p::core::multiaddr::{Multiaddr, Protocol};
 use libp2p::floodsub::Topic;
@@ -27,11 +27,8 @@ use log::info;
 use log::log_enabled;
 use reqwest::blocking as reqwest;
 
-
 use std::convert::TryInto;
 use std::error::Error;
-
-use std::io::Read;
 
 use std::net::Ipv4Addr;
 
@@ -45,19 +42,19 @@ pub struct P2p {
     relay_multiaddr: Multiaddr,
     pub peer_id: PeerId,
     key: identity::Keypair,
-    in_sender: Sender<Message>,
-    out_receiver: Receiver<Message>,
+    channels: ChannelsP2pEnd,
     username: String,
     main_topic: Topic,
 }
 
 impl P2p {
-    pub fn new(in_sender: Sender<Message>, out_receiver: Receiver<Message>) -> Self {
+    pub fn new(channels: ChannelsP2pEnd) -> Self {
         let (local_peer_id, key) = get_local_peer_id();
 
         if log_enabled!(log::Level::Debug) {
             block_on(
-                in_sender
+                channels
+                    .in_p2p_sender
                     .clone()
                     .send(Message::Text(format!("My peer id is: {}", local_peer_id))),
             )
@@ -68,14 +65,13 @@ impl P2p {
             relay_multiaddr: RELAY_MULTIADDR.parse().unwrap(),
             peer_id: local_peer_id,
             key,
-            in_sender,
-            out_receiver,
+            channels,
             username: local_peer_id.to_string().chars().rev().take(5).collect(),
             main_topic: Topic::new("main"),
         }
     }
 
-    pub fn start(&self) -> Result<(), Box<dyn Error>> {
+    pub fn start(&mut self) -> Result<(), Box<dyn Error>> {
         let client = reqwest::Client::new();
         let rooms: Vec<Room> = client
             .get(format!("{}/rooms", ROOMS_ADDRESS))
@@ -167,7 +163,8 @@ impl P2p {
                 .unwrap();
             if log_enabled!(log::Level::Debug) {
                 block_on(
-                    self.in_sender
+                    self.channels
+                        .in_p2p_sender
                         .clone()
                         .send(Message::Text(format!("Dialing {}", peer_id.to_string()))),
                 )

@@ -1,6 +1,7 @@
 use crate::types::{Message, UserMessage};
-use async_std::channel::Sender;
+use futures::channel::mpsc::UnboundedSender;
 use futures::executor::block_on;
+use futures::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::types::Res;
@@ -23,14 +24,14 @@ pub struct Room {
     pub guests: Vec<Guest>,
 }
 
-pub fn handle_command(string: &String, out_sender: Sender<Message>) -> Res<String> {
+pub fn handle_command(string: &String, out_sender: UnboundedSender<Message>) -> Res<String> {
     let client = reqwest::Client::new();
     if !string.starts_with("/") {
         let msg = Message::UserMessage(UserMessage {
             username: None,
             text: string.clone(),
         });
-        block_on(out_sender.send(msg)).unwrap();
+        out_sender.unbounded_send(msg).unwrap();
         return Ok(String::new());
     }
     let command = &string[1..];

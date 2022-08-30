@@ -1,7 +1,7 @@
 use futures::{executor::block_on, prelude::*, select};
 use libp2p::dcutr::behaviour::Event::DirectConnectionUpgradeSucceeded;
+use libp2p::swarm::SwarmEvent;
 use libp2p::{floodsub::FloodsubEvent, relay::v2::client, Swarm};
-use libp2p_swarm::SwarmEvent;
 use log::{info, log_enabled, Level};
 
 use crate::{
@@ -10,10 +10,11 @@ use crate::{
 };
 
 impl P2p {
-    pub fn run_swarm_loop(&self, swarm: &mut Swarm<Behaviour>) {
+    pub fn run_swarm_loop(&mut self, swarm: &mut Swarm<Behaviour>) {
         if log_enabled!(Level::Debug) {
             block_on(
-                self.in_sender
+                self.channels
+                    .in_p2p_sender
                     .send(Message::Text("Running swarm loop".to_string())),
             )
             .unwrap();
@@ -22,8 +23,6 @@ impl P2p {
             .behaviour_mut()
             .floodsub
             .subscribe(self.main_topic.clone());
-        let mut out_receiver = self.out_receiver.clone();
-        let in_sender = self.in_sender.clone();
         block_on(async {
             loop {
                 select!(
@@ -35,7 +34,7 @@ impl P2p {
                             client::Event::ReservationReqAccepted { .. },
                         )) => {
                             if log_enabled!(Level::Debug) {
-                                self.in_sender.send(Message::Text("Relay accepted our reservation request".to_string())).await.unwrap();
+                                self.channels.in_p2p_sender.send(Message::Text("Relay accepted our reservation request".to_string())).await.unwrap();
                             }
                             info!("Relay accepted our reservation request.");
                         }
@@ -44,7 +43,7 @@ impl P2p {
                         }
                         SwarmEvent::Behaviour(Event::Dcutr(DirectConnectionUpgradeSucceeded {remote_peer_id})) => {
                             let username = utils::get_username_from_peer_id(remote_peer_id);
-                            in_sender.send(Message::Text(format!("{} connected p2p!", username))).await.unwrap();
+                            self.channels.in_p2p_sender.send(Message::Text(format!("{} connected p2p!", username))).await.unwrap();
                             swarm.behaviour_mut().floodsub.add_node_to_partial_view(remote_peer_id);
                         }
                         SwarmEvent::Behaviour(Event::Identify(event)) => {
@@ -52,7 +51,7 @@ impl P2p {
                         }
                         SwarmEvent::Behaviour(Event::Floodsub(FloodsubEvent::Message(msg))) => {
                             let message = bincode::deserialize::<Message>(&msg.data).unwrap_or(Message::Empty);
-                            in_sender.send(message).await.unwrap();
+                            self.channels.in_p2p_sender.send(message).await.unwrap();
                         }
                         SwarmEvent::Behaviour(Event::Ping(_event)) => {
                         }
@@ -62,12 +61,12 @@ impl P2p {
                         SwarmEvent::OutgoingConnectionError { peer_id: _, error } => {
                             info!("{:?}", error);
                             if log_enabled!(Level::Debug) {
-                                in_sender.send(Message::Text(format!("{:?}", error))).await.unwrap();
+                                self.channels.in_p2p_sender.send(Message::Text(format!("{:?}", error))).await.unwrap();
                             }
                         }
                         _ => {}
                     },
-                    message = out_receiver.next() => match message {
+                    message = self.channels.out_p2p_receiver.next() => match message {
                         None => {},
                         Some(mut msg) => {
                             match msg {

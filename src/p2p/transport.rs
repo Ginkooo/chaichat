@@ -1,16 +1,15 @@
 use futures::executor::block_on;
+use libp2p::core::muxing::StreamMuxerBox;
+use libp2p::core::transport::{Boxed, OrTransport};
 use libp2p::core::upgrade;
 use libp2p::dns::DnsConfig;
-use libp2p::PeerId;
-use libp2p::Transport;
 use libp2p::{
     identity::Keypair,
     noise,
     relay::v2::client::Client,
     tcp::{GenTcpConfig, TcpTransport},
 };
-use libp2p_core::muxing::StreamMuxerBox;
-use libp2p_core::transport::{Boxed, OrTransport};
+use libp2p::{PeerId, Transport};
 
 pub fn create_transport(
     key: Keypair,

@@ -1,5 +1,4 @@
-use async_std::channel::{self, Receiver};
-use futures::executor::block_on;
+use futures::channel::mpsc::{unbounded, UnboundedReceiver};
 use image::RgbImage;
 use nokhwa::{Camera, CameraFormat, FrameFormat};
 use std::thread;
@@ -8,9 +7,8 @@ use crate::camera_frame::CameraFrame;
 use crate::consts::DEFAULT_CAMERA_SIZE;
 use crate::types::{CameraImage, Res};
 
-pub fn run_camera_thread() -> Res<Receiver<CameraFrame>> {
-    let (sender, receiver) = channel::unbounded();
-    let sender_clone = sender.clone();
+pub fn run_camera_thread() -> Res<UnboundedReceiver<CameraFrame>> {
+    let (sender, receiver) = unbounded();
 
     thread::spawn(move || {
         let cam = Camera::new(
@@ -33,7 +31,7 @@ pub fn run_camera_thread() -> Res<Receiver<CameraFrame>> {
                 .expect("failed to create image from camera frame");
             let frame = CameraImage::from(frame);
             let frame = CameraFrame::from_camera_image(frame);
-            block_on(sender_clone.send(frame)).unwrap();
+            sender.unbounded_send(frame);
         }
     });
 

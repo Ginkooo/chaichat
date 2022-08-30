@@ -18,20 +18,13 @@ chrono = { version = "*", features = ["serde"] }
 reqwest = { version = "*", features = ["blocking", "json"] }
 async-std = "*"
 asynchronous-codec = "0.6"
-bytes = "1"
-either = "1.6.0"
-futures = "0.3.1"
-futures-timer = "3.0"
-instant = "0.1.11"
-libp2p-core = { git = "https://github.com/libp2p/rust-libp2p" }
-libp2p-swarm = { git = "https://github.com/libp2p/rust-libp2p" }
-log = "0.4"
-prost-codec = { git = "https://github.com/libp2p/rust-libp2p" }
-prost = "*"
-thiserror = "1.0"
-void = "1"
-libp2p = { git = "https://github.com/libp2p/rust-libp2p", default-features = false,  features = ["dcutr", "relay", "plaintext", "identify", "tcp-async-io", "ping", "noise", "dns-async-std", "floodsub"] }
-libp2p-yamux = { git = "https://github.com/libp2p/rust-libp2p" }
+futures = "*"
+futures-timer = "*"
+instant = "*"
+log = "*"
+thiserror = "*"
+libp2p = { version = "*", default-features = false,  features = ["dcutr", "relay", "plaintext", "identify", "tcp-async-io", "ping", "noise", "dns-async-std", "floodsub"] }
+libp2p-yamux = "*"
 const_format = "*"
 
 [dependencies.nokhwa]

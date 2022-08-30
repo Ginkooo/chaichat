@@ -1,10 +1,10 @@
 use futures::executor::block_on;
 use futures::prelude::*;
+use libp2p::swarm::SwarmEvent;
 use libp2p::{
     identify::{IdentifyEvent, IdentifyInfo},
     Swarm,
 };
-use libp2p_swarm::SwarmEvent;
 use log::info;
 
 use super::{behaviour::Behaviour, event::Event, P2p};

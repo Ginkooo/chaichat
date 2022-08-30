@@ -1,7 +1,6 @@
 use std::io::prelude::*;
 use std::{fs::File, path::PathBuf};
 
-use futures::executor::block_on;
 use libp2p::{identity::Keypair, PeerId};
 use log::log_enabled;
 
@@ -12,7 +11,10 @@ use super::P2p;
 impl P2p {
     pub fn message_on_debug(&self, text: &str) {
         if log_enabled!(log::Level::Debug) {
-            block_on(self.in_sender.send(Message::Text(text.to_string()))).unwrap()
+            self.channels
+                .in_p2p_sender
+                .unbounded_send(Message::Text(text.to_string()))
+                .unwrap()
         }
     }
 }

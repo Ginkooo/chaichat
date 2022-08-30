@@ -3,10 +3,12 @@ use std::io::{stdout, Stdout};
 use crate::camera_frame::CameraFrame;
 use crate::commands::handle_command;
 use crate::types::CameraImage;
+use crate::types::ChaiError;
+use crate::types::ChannelsTerminalEnd;
 use crate::types::Message;
-use async_std::channel::{Receiver, Sender};
-use async_std::stream::StreamExt;
 use crossterm::event::Event;
+use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender};
+use futures::prelude::*;
 
 use crossterm::event::KeyCode;
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
@@ -62,13 +64,7 @@ impl<'a> ChaiTerminal<'a> {
         disable_raw_mode().expect("Cannot disable terminal raw mode");
     }
 
-    pub fn draw_in_terminal(
-        self: &mut Self,
-        mut camera_frames: Receiver<CameraFrame>,
-        input_events: Receiver<Event>,
-        in_p2p_receiver: Receiver<Message>,
-        out_p2p_sender: Sender<Message>,
-    ) -> Res<()> {
+    pub fn draw_in_terminal(self: &mut Self, channels: &mut ChannelsTerminalEnd) -> Res<()> {
         if self.text_area_content.lines.len() > 50 {
             let dupa: Vec<Spans> = self
                 .text_area_content
@@ -100,8 +96,8 @@ impl<'a> ChaiTerminal<'a> {
             DEFAULT_CAMERA_SIZE[0] as u32,
             DEFAULT_CAMERA_SIZE[1] as u32,
         ));
-        match in_p2p_receiver.try_recv() {
-            Ok(Message::Text(msg)) => {
+        match channels.in_p2p_receiver.try_next() {
+            Ok(Some(Message::Text(msg))) => {
                 self.text_area_content
                     .lines
                     .push(vec![Span::styled(msg, Style::default().fg(Color::Yellow))].into());
@@ -109,7 +105,7 @@ impl<'a> ChaiTerminal<'a> {
                     .lines
                     .push(vec![Span::raw("")].into());
             }
-            Ok(Message::UserMessage(msg)) => {
+            Ok(Some(Message::UserMessage(msg))) => {
                 self.text_area_content.lines.push(
                     vec![Span::styled(
                         format!(
@@ -125,7 +121,7 @@ impl<'a> ChaiTerminal<'a> {
                     .lines
                     .push(vec![Span::raw("")].into());
             }
-            Ok(Message::RawCameraImage(raw)) => {
+            Ok(Some(Message::RawCameraImage(raw))) => {
                 in_camera_frame = CameraFrame::from_camera_image(
                     CameraImage::from_raw(
                         DEFAULT_CAMERA_SIZE[0] as u32,
@@ -135,13 +131,19 @@ impl<'a> ChaiTerminal<'a> {
                     .unwrap(),
                 );
             }
-            Ok(_) => {}
-            Err(_) => (),
+            _ => {}
         }
         let input_paragraph = Paragraph::new(self.text_area_content.clone())
             .wrap(Wrap { trim: false })
             .scroll((
-                (self.text_area_content.lines.len() as u16 - 4 + self.scroll as u16).max(0),
+                (self
+                    .text_area_content
+                    .lines
+                    .len()
+                    .checked_sub(4)
+                    .unwrap_or(0)
+                    + self.scroll as usize)
+                    .max(0) as u16,
                 0,
             ));
         let input_paragraph_rect = Rect {
@@ -151,8 +153,8 @@ impl<'a> ChaiTerminal<'a> {
             height: chunks[1].height - 1,
         };
 
-        match input_events.try_recv() {
-            Ok(event) => match event {
+        match channels.input_event_receiver.try_next() {
+            Ok(Some(event)) => match event {
                 Event::Key(key) => match key.code {
                     KeyCode::Char(chr) => {
                         let last_content = self.get_text_area_last_span_content();
@@ -181,7 +183,7 @@ impl<'a> ChaiTerminal<'a> {
                     KeyCode::Enter => {
                         let response = match handle_command(
                             &self.get_text_area_last_span_content(),
-                            out_p2p_sender.clone(),
+                            channels.out_p2p_sender.clone(),
                         ) {
                             Ok(response) => response,
                             Err(_) => String::from("Error"),
@@ -199,17 +201,18 @@ impl<'a> ChaiTerminal<'a> {
                             .push(vec![new_input_line_span].into());
                     }
                     KeyCode::Esc => {
-                        panic!();
+                        return Err("Esc clicked".into());
                     }
                     _ => {}
                 },
                 _ => {}
             },
-            Err(_) => {}
+            _ => {}
         }
 
         let mut camera_frame = block_on(io::timeout(Duration::from_secs(1), async {
-            camera_frames
+            channels
+                .receiver_camera
                 .next()
                 .await
                 .ok_or(std::io::Error::last_os_error())
