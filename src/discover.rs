@@ -57,107 +57,57 @@ pub async fn discover() {
     loop {
         tokio::select! {
                 event = swarm.select_next_some() => match event {
-                SwarmEvent::NewListenAddr { address, .. } => {
-                    log::info!("Listening on {}", address);
-                }
-                SwarmEvent::ConnectionClosed {
-                    peer_id,
-                    cause: Some(error),
-                    ..
-                } if peer_id == rendezvous_point => {
-                    log::error!("Lost connection to rendezvous point {}", error);
-                }
-                // once `/identify` did its job, we know our external address and can register
-                SwarmEvent::Behaviour(MyBehaviourEvent::Identify(identify::Event::Received {
-                    ..
-                })) => {
-                    swarm.behaviour_mut().rendezvous.register(
-                        rendezvous::Namespace::from_static("rendezvous"),
-                        rendezvous_point,
-                        None,
-                    );
-                }
-                SwarmEvent::Behaviour(MyBehaviourEvent::Rendezvous(
-                    rendezvous::client::Event::Registered {
-                        namespace,
-                        ttl,
-                        rendezvous_node,
-                    },
-                )) => {
-                    log::info!(
-                        "Registered for namespace '{}' at rendezvous point {} for the next {} seconds",
-                        namespace,
-                        rendezvous_node,
-                        ttl
-                    );
-                }
-                SwarmEvent::Behaviour(MyBehaviourEvent::Rendezvous(
-                    rendezvous::client::Event::RegisterFailed(error),
-                )) => {
-                    log::error!("Failed to register {}", error);
-                    return;
-                }
-                SwarmEvent::Behaviour(MyBehaviourEvent::Ping(ping::Event {
-                    peer,
-                    result: Ok(ping::Success::Ping { rtt }),
-                })) if peer != rendezvous_point => {
-                    log::info!("Ping to {} is {}ms", peer, rtt.as_millis())
-                }
-                other => {
-                    log::debug!("Unhandled {:?}", other);
-                }
-                SwarmEvent::NewListenAddr { address, .. } => {
-                    log::info!("Listening on {}", address);
-                }
-                SwarmEvent::ConnectionClosed {
-                    peer_id,
-                    cause: Some(error),
-                    ..
-                } if peer_id == rendezvous_point => {
-                    log::error!("Lost connection to rendezvous point {}", error);
-                }
-                SwarmEvent::ConnectionEstablished { peer_id, .. } if peer_id == rendezvous_point => {
-                    swarm.behaviour_mut().rendezvous.register(
-                        rendezvous::Namespace::from_static("rendezvous"),
-                        rendezvous_point,
-                        None,
-                    );
-                    log::info!("Connection established with rendezvous point {}", peer_id);
-                }
-                // once `/identify` did its job, we know our external address and can register
-                SwarmEvent::Behaviour(MyBehaviourEvent::Rendezvous(
-                    rendezvous::client::Event::Registered {
-                        namespace,
-                        ttl,
-                        rendezvous_node,
-                    },
-                )) => {
-                    log::info!(
-                        "Registered for namespace '{}' at rendezvous point {} for the next {} seconds",
-                        namespace,
-                        rendezvous_node,
-                        ttl
-                    );
-                }
-                SwarmEvent::Behaviour(MyBehaviourEvent::Rendezvous(
-                    rendezvous::client::Event::RegisterFailed(error),
-                )) => {
-                    log::error!("Failed to register {}", error);
-                    return;
-                }
-                SwarmEvent::Behaviour(MyBehaviourEvent::Ping(ping::Event {
-                    peer,
-                    result: Ok(ping::Success::Ping { rtt }),
-                })) if peer != rendezvous_point => {
-                    log::info!("Ping to {} is {}ms", peer, rtt.as_millis())
-                }
-                other => {
-                    log::debug!("Unhandled {:?}", other);
-                }
-                    SwarmEvent::ConnectionEstablished { peer_id, .. } if peer_id == rendezvous_point => {
+                    SwarmEvent::NewListenAddr { address, .. } => {
+                        log::info!("Listening on {}", address);
+                    }
+                    SwarmEvent::ConnectionClosed {
+                        peer_id,
+                        cause: Some(error),
+                        ..
+                    } if peer_id == rendezvous_point => {
+                        log::error!("Lost connection to rendezvous point {}", error);
+                    }
+                    // once `/identify` did its job, we know our external address and can register
+                    SwarmEvent::Behaviour(MyBehaviourEvent::Identify(identify::Event::Received {
+                        ..
+                    })) => {
+                        swarm.behaviour_mut().rendezvous.register(
+                            rendezvous::Namespace::from_static("rendezvous"),
+                            rendezvous_point,
+                            None,
+                        );
+                    }
+                    SwarmEvent::Behaviour(MyBehaviourEvent::Rendezvous(
+                        rendezvous::client::Event::Registered {
+                            namespace,
+                            ttl,
+                            rendezvous_node,
+                        },
+                    )) => {
                         log::info!(
-                            "Connected to rendezvous point, discovering nodes in '{}' namespace ...",
-                            NAMESPACE
+                            "Registered for namespace '{}' at rendezvous point {} for the next {} seconds",
+                            namespace,
+                            rendezvous_node,
+                            ttl
+                        );
+                    }
+                    SwarmEvent::Behaviour(MyBehaviourEvent::Rendezvous(
+                        rendezvous::client::Event::RegisterFailed(error),
+                    )) => {
+                        log::error!("Failed to register {}", error);
+                        return;
+                    }
+                    SwarmEvent::Behaviour(MyBehaviourEvent::Ping(ping::Event {
+                        peer,
+                        result: Ok(ping::Success::Ping { rtt }),
+                    })) if peer != rendezvous_point => {
+                        log::info!("Ping to {} is {}ms", peer, rtt.as_millis())
+                    }
+                    SwarmEvent::ConnectionEstablished { peer_id, .. } if peer_id == rendezvous_point => {
+                        swarm.behaviour_mut().rendezvous.register(
+                            rendezvous::Namespace::from_static("rendezvous"),
+                            rendezvous_point,
+                            None,
                         );
 
                         swarm.behaviour_mut().rendezvous.discover(
@@ -166,6 +116,17 @@ pub async fn discover() {
                             None,
                             rendezvous_point,
                         );
+                        log::info!("Connection established with rendezvous point {}", peer_id);
+                        log::info!(
+                            "Connected to rendezvous point, discovering nodes in '{}' namespace ...",
+                            NAMESPACE
+                        );
+                    }
+                    SwarmEvent::Behaviour(MyBehaviourEvent::Ping(ping::Event {
+                        peer,
+                        result: Ok(ping::Success::Ping { rtt }),
+                    })) if peer != rendezvous_point => {
+                        log::info!("Ping to {} is {}ms", peer, rtt.as_millis())
                     }
                     SwarmEvent::Behaviour(MyBehaviourEvent::Rendezvous(rendezvous::client::Event::Discovered {
                         registrations,
