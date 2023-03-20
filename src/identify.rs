@@ -9,7 +9,7 @@ use libp2p::{
 use std::time::Duration;
 
 pub async fn identify() {
-    let key_pair = identity::Keypair::generate_ed25519();
+    let key_pair = config::KEY_PAIR.clone();
     let rendezvous_point_address = "/ip4/127.0.0.1/tcp/62649".parse::<Multiaddr>().unwrap();
     let rendezvous_point = config::RZV_PEER_ID.parse().unwrap();
 
