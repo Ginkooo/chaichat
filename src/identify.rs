@@ -38,57 +38,7 @@ pub async fn identify() {
     swarm.dial(rendezvous_point_address.clone()).unwrap();
 
     while let Some(event) = swarm.next().await {
-        match event {
-            SwarmEvent::NewListenAddr { address, .. } => {
-                log::info!("Listening on {}", address);
-            }
-            SwarmEvent::ConnectionClosed {
-                peer_id,
-                cause: Some(error),
-                ..
-            } if peer_id == rendezvous_point => {
-                log::error!("Lost connection to rendezvous point {}", error);
-            }
-            // once `/identify` did its job, we know our external address and can register
-            SwarmEvent::Behaviour(MyBehaviourEvent::Identify(identify::Event::Received {
-                ..
-            })) => {
-                swarm.behaviour_mut().rendezvous.register(
-                    rendezvous::Namespace::from_static("rendezvous"),
-                    rendezvous_point,
-                    None,
-                );
-            }
-            SwarmEvent::Behaviour(MyBehaviourEvent::Rendezvous(
-                rendezvous::client::Event::Registered {
-                    namespace,
-                    ttl,
-                    rendezvous_node,
-                },
-            )) => {
-                log::info!(
-                    "Registered for namespace '{}' at rendezvous point {} for the next {} seconds",
-                    namespace,
-                    rendezvous_node,
-                    ttl
-                );
-            }
-            SwarmEvent::Behaviour(MyBehaviourEvent::Rendezvous(
-                rendezvous::client::Event::RegisterFailed(error),
-            )) => {
-                log::error!("Failed to register {}", error);
-                return;
-            }
-            SwarmEvent::Behaviour(MyBehaviourEvent::Ping(ping::Event {
-                peer,
-                result: Ok(ping::Success::Ping { rtt }),
-            })) if peer != rendezvous_point => {
-                log::info!("Ping to {} is {}ms", peer, rtt.as_millis())
-            }
-            other => {
-                log::debug!("Unhandled {:?}", other);
-            }
-        }
+        match event {}
     }
 }
 
