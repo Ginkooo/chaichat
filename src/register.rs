@@ -35,7 +35,9 @@ pub async fn register() {
 
     // In production the external address should be the publicly facing IP address of the rendezvous point.
     // This address is recorded in the registration entry by the rendezvous point.
-    let external_address = "/ip4/127.0.0.1/tcp/0".parse::<Multiaddr>().unwrap();
+    let external_address = format!("/ip4/{}/tcp/0", *config::RZV_SERVER_IP)
+        .parse::<Multiaddr>()
+        .unwrap();
     swarm.add_external_address(external_address, AddressScore::Infinite);
 
     log::info!("Local peer id: {}", swarm.local_peer_id());
